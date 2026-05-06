@@ -61,6 +61,12 @@ def add_tax_ratio_feature(df):
     return df
 
 
+def add_risk_column(df):
+    """Add a 'risk' column based on tax_ratio."""
+    df["risk"] = df["tax_ratio"].apply(lambda x: "HIGH RISK" if x > 0.5 else "LOW RISK")
+    return df
+
+
 def save_feature_dataset(df):
     """Save the feature-engineered dataset for later model training."""
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
@@ -73,13 +79,19 @@ def main():
     df = prepare_price_column(df)
     df = add_tax_feature(df)
     df = add_tax_ratio_feature(df)
+    df = add_risk_column(df)
     save_feature_dataset(df)
 
     print("Feature engineering completed successfully.")
     print(f"Feature dataset saved to: {FEATURE_DATA_PATH}")
     print("\nNew columns added:")
-    print(df[["price_usd", "tax", "tax_ratio"]].head())
+    print(df[["price_usd", "tax", "tax_ratio", "risk"]].head())
 
 
 if __name__ == "__main__":
     main()
+    # Load the cleaned dataset
+    cleaned_df = pd.read_csv(CLEAN_DATA_PATH)
+
+    # Display the first 5 rows
+    print(cleaned_df.head())
