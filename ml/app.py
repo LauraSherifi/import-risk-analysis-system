@@ -5,6 +5,7 @@ import os
 
 # Initialize Flask app
 app = Flask(__name__)
+ML_API_PORT = int(os.environ.get("ML_API_PORT", 5001))
 
 # Define the base directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -14,6 +15,11 @@ model_path = os.path.join(BASE_DIR, "models", "import_risk_classifier.joblib")
 
 # Load the trained model
 model = joblib.load(model_path)
+
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "ok"})
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -42,4 +48,4 @@ def predict():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=ML_API_PORT)
