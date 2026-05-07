@@ -1,6 +1,8 @@
 import "./App.css";
+import { Routes, Route, Link } from "react-router-dom";
+import PredictionView from "./pages/PredictionView";
 
-function App() {
+function Dashboard() {
   return (
     <div className="app">
       <aside className="sidebar">
@@ -9,10 +11,8 @@ function App() {
         <p>Analysis System</p>
 
         <nav>
-          <button className="active">Dashboard</button>
-          <button>Dataset</button>
-          <button>Cleaning</button>
-          <button>Risk</button>
+          <Link to="/" className="active">Dashboard</Link>
+          <Link to="/predict">Prediction</Link>
         </nav>
       </aside>
 
@@ -32,16 +32,22 @@ function App() {
             <span>Columns</span>
             <strong>8</strong>
           </div>
-
         </section>
 
         <section className="panel">
           <h3>Sample Shipment Records</h3>
-
-          
         </section>
       </main>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/predict" element={<PredictionView />} />
+    </Routes>
   );
 }
 
