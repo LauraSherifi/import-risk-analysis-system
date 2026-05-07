@@ -62,8 +62,17 @@ def add_tax_ratio_feature(df):
 
 
 def add_risk_column(df):
-    """Add a 'risk' column based on tax_ratio."""
-    df["risk"] = df["tax_ratio"].apply(lambda x: "HIGH RISK" if x > 0.5 else "LOW RISK")
+    """Add a 'risk' column based on tax_ratio using a percentile-based approach."""
+    df = df.copy()
+
+    # Calculate percentiles for tax_ratio
+    low_risk_threshold = df['tax_ratio'].quantile(0.15)  # Lowest 15% are HIGH RISK
+
+    # Apply new risk labeling logic
+    df['risk'] = df['tax_ratio'].apply(
+        lambda x: 'HIGH RISK' if x < low_risk_threshold else 'LOW RISK'
+    )
+
     return df
 
 
