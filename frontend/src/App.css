@@ -1,8 +1,12 @@
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
-  background: #eef4fb;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(180deg, #eef4fb 0%, #f7fbff 100%);
   color: #1f2937;
+}
+
+#root {
+  min-height: 100vh;
 }
 
 .app {
@@ -12,9 +16,10 @@ body {
 
 .sidebar {
   width: 220px;
-  background: #0f4c81;
+  background: linear-gradient(180deg, #0f4c81 0%, #0a3557 100%);
   color: white;
   padding: 24px;
+  box-sizing: border-box;
 }
 
 .logo {
@@ -47,20 +52,22 @@ nav {
   gap: 10px;
 }
 
-nav button {
-  padding: 11px;
-  border: none;
-  border-radius: 8px;
-  background: #1d6fa5;
+.nav-link {
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
   color: white;
   text-align: left;
   cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
-nav button.active,
-nav button:hover {
+.nav-link.active,
+.nav-link:hover {
   background: white;
   color: #0f4c81;
+  transform: translateX(2px);
 }
 
 .main {
@@ -68,19 +75,37 @@ nav button:hover {
   padding: 28px;
 }
 
-header h1 {
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.page-header h1 {
   margin: 0;
   color: #0f4c81;
 }
 
-header p {
+.page-header p {
   margin-top: 6px;
   color: #64748b;
 }
 
+.header-badge {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(15, 76, 129, 0.1);
+  color: #0f4c81;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .cards {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   margin: 24px 0;
 }
@@ -105,9 +130,157 @@ header p {
   font-size: 24px;
 }
 
+.card small {
+  display: block;
+  margin-top: 10px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
 .panel h3 {
   margin-top: 0;
   color: #0f4c81;
+}
+
+.panel p {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+.panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.snapshot-item {
+  padding: 16px;
+  border-radius: 12px;
+  background: #f7fbff;
+  border: 1px solid #d9e8f5;
+}
+
+.snapshot-item span {
+  display: block;
+  color: #64748b;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.snapshot-item strong {
+  color: #0f4c81;
+}
+
+.prediction-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.prediction-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.field input {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field input:focus {
+  border-color: #0f4c81;
+  box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.12);
+}
+
+.primary-button {
+  padding: 12px 14px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0f4c81 0%, #1d6fa5 100%);
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primary-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 76, 129, 0.18);
+}
+
+.summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f7fbff;
+  border: 1px solid #d9e8f5;
+}
+
+.summary-row span {
+  color: #64748b;
+}
+
+.summary-row strong {
+  color: #0f4c81;
+}
+
+.prediction-result {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #eef8f2;
+  border: 1px solid #b9dfc5;
+}
+
+.prediction-result.error {
+  background: #fff4f4;
+  border-color: #efc1c1;
+}
+
+.prediction-result span {
+  display: block;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.prediction-result strong {
+  color: #0f4c81;
+  font-size: 20px;
+}
+
+.prediction-result.error strong {
+  color: #b42318;
 }
 
 @media (max-width: 900px) {
@@ -119,7 +292,13 @@ header p {
     width: auto;
   }
 
-  .cards {
+  .cards,
+  .prediction-grid,
+  .snapshot-grid {
     grid-template-columns: 1fr;
+  }
+
+  .page-header {
+    flex-direction: column;
   }
 }
