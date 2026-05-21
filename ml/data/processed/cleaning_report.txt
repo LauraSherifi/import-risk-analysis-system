@@ -1,17 +1,11 @@
 DATA CLEANING REPORT
 ==================================================
 
-Dataset shape:
-Original dataset: (263821, 8)
-Cleaned dataset: (263821, 8)
+Original dataset shape:
+(263821, 8)
 
-Explanation:
-The original dataset contained 263,821 rows and 8 columns. 
-After the cleaning process, the number of rows remained the same, 
-which means that no records were removed from the dataset. 
-The cleaned dataset also contains 8 columns because no additional 
-flag columns were kept in the final version of the dataset.
-
+Cleaned dataset shape:
+(263821, 8)
 
 Missing values before cleaning:
 name                   0
@@ -22,15 +16,6 @@ width (m)              0
 height (m)             0
 shipment date       2638
 destination port      26
-dtype: int64
-
-Explanation:
-Before cleaning, missing values were found in four columns: 
-weight (kg), length (m), shipment date, and destination port. 
-The largest number of missing values was found in the shipment date column, 
-with 2,638 missing records. The destination port column had 26 missing values,
-weight had 13 missing values, and length had 184 missing values.
-
 
 Missing values after cleaning:
 product_name        0
@@ -41,73 +26,30 @@ width_m             0
 height_m            0
 shipment_date       0
 destination_port    0
-dtype: int64
 
-Explanation:
-After applying the cleaning process, all missing values were handled. 
-This means that the cleaned dataset does not contain empty values in any 
-of the final columns. The cleaned dataset was kept simple and does not include 
-additional missing-value flag columns.
+Invalid numeric values before cleaning:
+price_usd    0
+weight_kg    0
+length_m     0
+width_m      0
+height_m     0
 
-
-Data types after cleaning:
-product_name             object
-price_usd               float64
-weight_kg               float64
-length_m                float64
-width_m                 float64
-height_m                float64
-shipment_date    datetime64[ns]
-destination_port         object
-dtype: object
-
-Explanation:
-The numeric columns, such as price, weight, length, width, and height, 
-are stored as float values. The shipment_date column was converted 
-from text/object into datetime format. 
-This is important because Python needs to recognize date values correctly 
-for later analysis or machine learning tasks.
-
-
-Number of duplicate rows after cleaning:
+Duplicate rows removed:
 0
 
-Explanation:
-No duplicate rows were found after the cleaning process. 
-Therefore, no rows were removed because of duplication.
+Cleaning steps applied:
+- Validated required raw columns
+- Renamed columns to ML-friendly names
+- Cleaned text columns
+- Converted numeric columns
+- Converted shipment_date to datetime
+- Removed duplicate rows
+- Treated zero and negative numeric values as invalid
+- Filled missing numeric values using product-level median first
+- Used global median as fallback
+- Filled missing shipment dates using median shipment date
+- Saved cleaned dataset for feature engineering
 
-
-Note on missing-value flags:
-Missing-value flag columns were considered during the cleaning process, 
-but they were not kept in the final cleaned dataset.
-
-The reason is that the percentage of missing values was very low compared 
-to the total number of records. For example, the dataset contains 263,821 rows, 
-while only 13 values were missing in weight, 184 in length, 2,638 in shipment date, 
-and 26 in destination port.
-
-Because most rows would have a value of 0 in the flag columns, keeping these 
-additional columns would make the dataset larger and more complex without adding 
-much value at this stage of the project. Instead, the missing values are documented 
-in this report.
-
-
-Cleaning method summary:
-The dataset was cleaned by standardizing column names, converting data types, 
-checking for duplicate rows, and handling missing values. The column names 
-were renamed to make them easier to use in Python and machine learning 
-workflows. The shipment_date column was converted from text/object format 
-into datetime format.
-
-Missing numeric values in weight_kg and length_m were filled using the 
-median value for the same product_name where possible. If a product-level 
-median was not available, the overall median value was used. 
-Missing shipment_date values were filled using the median shipment date 
-from the dataset. Missing destination_port values were filled with the category "Unknown".
-
-
-Final summary:
-The data preparation step was completed successfully. 
-The cleaned dataset contains the same number of rows as the original dataset, 
-has no remaining missing values, has no duplicate rows, and uses clean column 
-names and correct data types for the next machine learning steps.
+Output files:
+Cleaned dataset: C:\Users\admin\Desktop\import-risk-analysis-system\ml\data\processed\shipping_data_clean.csv
+Cleaning report: C:\Users\admin\Desktop\import-risk-analysis-system\ml\data\processed\cleaning_report.txt
