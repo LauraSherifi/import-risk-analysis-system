@@ -6,6 +6,81 @@ const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://127.0.0.1:5001";
 
 app.use(express.json());
 
+function parseNonNegativeNumber(value, fieldName) {
+  if (value == null || value === "") {
+    return {
+      ok: false,
+      error: `Missing required field: ${fieldName}`
+    };
+  }
+
+  const parsedValue = Number(value);
+
+  if (!Number.isFinite(parsedValue)) {
+    return {
+      ok: false,
+      error: `${fieldName} must be a valid number`
+    };
+  }
+
+  if (parsedValue < 0) {
+    return {
+      ok: false,
+      error: `${fieldName} must be greater than or equal to 0`
+    };
+  }
+
+  return {
+    ok: true,
+    value: parsedValue
+  };
+}
+
+function buildPredictionPayload(body) {
+  const taxResult = parseNonNegativeNumber(body.tax, "tax");
+  if (!taxResult.ok) {
+    return taxResult;
+  }
+
+  if (body.tax_ratio != null && body.tax_ratio !== "") {
+    const taxRatioResult = parseNonNegativeNumber(body.tax_ratio, "tax_ratio");
+    if (!taxRatioResult.ok) {
+      return taxRatioResult;
+    }
+
+    return {
+      ok: true,
+      payload: {
+        tax: Number(taxResult.value.toFixed(2)),
+        tax_ratio: Number(taxRatioResult.value.toFixed(4))
+      }
+    };
+  }
+
+  const priceResult = parseNonNegativeNumber(body.price, "price");
+  if (!priceResult.ok) {
+    return {
+      ok: false,
+      error: "Provide either tax_ratio directly or provide price so tax_ratio can be calculated"
+    };
+  }
+
+  if (priceResult.value === 0) {
+    return {
+      ok: false,
+      error: "price must be greater than 0 when tax_ratio is not provided"
+    };
+  }
+
+  return {
+    ok: true,
+    payload: {
+      tax: Number(taxResult.value.toFixed(2)),
+      tax_ratio: Number((taxResult.value / priceResult.value).toFixed(4))
+    }
+  };
+}
+
 app.get("/", (req, res) => {
   res.json({
     message: "Import Risk Analysis backend is running."
@@ -40,11 +115,11 @@ app.get("/ml-health", async (req, res) => {
 
 // POST /predict endpoint
 app.post("/predict", async (req, res) => {
-  const { tax, tax_ratio } = req.body;
+  const predictionPayload = buildPredictionPayload(req.body || {});
 
-  if (tax == null || tax_ratio == null) {
+  if (!predictionPayload.ok) {
     return res.status(400).json({
-      error: "Missing required fields: tax and tax_ratio"
+      error: predictionPayload.error
     });
   }
 
@@ -54,7 +129,7 @@ app.post("/predict", async (req, res) => {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ tax, tax_ratio })
+      body: JSON.stringify(predictionPayload.payload)
     });
 
     const data = await response.json();
@@ -66,7 +141,8 @@ app.post("/predict", async (req, res) => {
     }
 
     res.json({
-      risk: data.prediction
+      risk: data.prediction,
+      input: predictionPayload.payload
     });
   } catch (error) {
     console.error("Error during prediction:", error);
