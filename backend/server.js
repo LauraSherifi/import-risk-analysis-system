@@ -3,6 +3,9 @@ const express = require("express");
 const app = express();
 const PORT = process.env.PORT || 5000;
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://127.0.0.1:5001";
+const MAX_HISTORY_ITEMS = 100;
+const predictionHistory = [];
+let nextHistoryId = 1;
 
 app.use(express.json());
 
@@ -81,6 +84,42 @@ function buildPredictionPayload(body) {
   };
 }
 
+function createHistoryEntry({ risk, input }) {
+  return {
+    id: nextHistoryId++,
+    risk,
+    input,
+    created_at: new Date().toISOString()
+  };
+}
+
+function addPredictionToHistory(entry) {
+  predictionHistory.unshift(entry);
+
+  if (predictionHistory.length > MAX_HISTORY_ITEMS) {
+    predictionHistory.pop();
+  }
+}
+
+function buildHistorySummary() {
+  const summary = {
+    total_predictions: predictionHistory.length,
+    high_risk_count: 0,
+    low_risk_count: 0,
+    latest_prediction_at: predictionHistory[0]?.created_at ?? null
+  };
+
+  for (const entry of predictionHistory) {
+    if (entry.risk === "HIGH RISK") {
+      summary.high_risk_count += 1;
+    } else if (entry.risk === "LOW RISK") {
+      summary.low_risk_count += 1;
+    }
+  }
+
+  return summary;
+}
+
 app.get("/", (req, res) => {
   res.json({
     message: "Import Risk Analysis backend is running."
@@ -91,6 +130,17 @@ app.get("/health", (req, res) => {
   res.status(200).json({
     status: "ok"
   });
+});
+
+app.get("/prediction-history", (req, res) => {
+  res.json({
+    total: predictionHistory.length,
+    items: predictionHistory
+  });
+});
+
+app.get("/prediction-history/summary", (req, res) => {
+  res.json(buildHistorySummary());
 });
 
 app.get("/ml-health", async (req, res) => {
@@ -140,9 +190,16 @@ app.post("/predict", async (req, res) => {
       });
     }
 
-    res.json({
+    const historyEntry = createHistoryEntry({
       risk: data.prediction,
       input: predictionPayload.payload
+    });
+    addPredictionToHistory(historyEntry);
+
+    res.json({
+      risk: data.prediction,
+      input: predictionPayload.payload,
+      history_entry: historyEntry
     });
   } catch (error) {
     console.error("Error during prediction:", error);
