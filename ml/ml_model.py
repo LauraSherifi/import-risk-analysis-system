@@ -12,8 +12,9 @@ from sklearn.metrics import (
     recall_score,
     f1_score,
 )
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline
+from sklearn.dummy import DummyClassifier
 from sklearn.preprocessing import StandardScaler
 
 
@@ -34,8 +35,6 @@ FEATURE_COLUMNS = [
     "density_kg_m3",
     "value_per_kg",
     "value_per_m3",
-    "tax",
-    "tax_ratio",
 ]
 
 
@@ -81,6 +80,48 @@ def build_logistic_regression_pipeline():
     )
 
 
+def tune_logistic_regression(X_train, y_train):
+    """Tune Logistic Regression hyperparameters using F1 score."""
+    parameter_grid = {
+        "classifier__C": [0.01, 0.1, 1.0, 10.0],
+        "classifier__class_weight": [None, "balanced"],
+        "classifier__solver": ["lbfgs", "liblinear"],
+    }
+
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    search = GridSearchCV(
+        estimator=build_logistic_regression_pipeline(),
+        param_grid=parameter_grid,
+        scoring="f1",
+        cv=cv,
+        n_jobs=1,
+    )
+    search.fit(X_train, y_train)
+
+    return search
+
+
+def evaluate_baseline(X_train, y_train, X_test, y_test):
+    """Measure a simple majority-class baseline for context."""
+    baseline_model = DummyClassifier(strategy="most_frequent")
+    baseline_model.fit(X_train, y_train)
+    baseline_predictions = baseline_model.predict(X_test)
+
+    return round(accuracy_score(y_test, baseline_predictions), 4)
+
+
+def cross_validate_model(X, y):
+    """Estimate generalization using stratified cross-validation."""
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    model = build_logistic_regression_pipeline()
+    scores = cross_val_score(model, X, y, cv=cv, scoring="f1")
+
+    return {
+        "cv_f1_mean": round(scores.mean(), 4),
+        "cv_f1_std": round(scores.std(), 4),
+    }
+
+
 def evaluate_model(model, X_test, y_test):
     """Return a metrics summary for the trained model."""
     y_pred = model.predict(X_test)
@@ -113,9 +154,13 @@ def save_outputs(model, metrics):
         report_file.write("Logistic Regression Evaluation\n")
         report_file.write(f"Features: {', '.join(FEATURE_COLUMNS)}\n\n")
         report_file.write(f"Accuracy: {metrics['accuracy']}\n")
+        report_file.write(f"Baseline Accuracy: {metrics['baseline_accuracy']}\n")
         report_file.write(f"Precision: {metrics['precision']}\n")
         report_file.write(f"Recall: {metrics['recall']}\n")
         report_file.write(f"F1 Score: {metrics['f1_score']}\n")
+        report_file.write(f"CV F1 Mean: {metrics['cv_f1_mean']}\n")
+        report_file.write(f"CV F1 Std: {metrics['cv_f1_std']}\n")
+        report_file.write(f"Best Params: {metrics['best_params']}\n")
         report_file.write(f"Confusion Matrix: {metrics['confusion_matrix']}\n\n")
         report_file.write("Classification Report:\n")
         report_file.write(metrics["classification_report"])
@@ -134,10 +179,13 @@ def main():
         stratify=y,
     )
 
-    model = build_logistic_regression_pipeline()
-    model.fit(X_train, y_train)
+    search = tune_logistic_regression(X_train, y_train)
+    model = search.best_estimator_
 
     metrics = evaluate_model(model, X_test, y_test)
+    metrics["baseline_accuracy"] = evaluate_baseline(X_train, y_train, X_test, y_test)
+    metrics.update(cross_validate_model(X, y))
+    metrics["best_params"] = search.best_params_
     save_outputs(model, metrics)
 
     print("Logistic Regression training completed successfully.")
@@ -146,9 +194,13 @@ def main():
     print(f"Detailed report saved to: {REPORT_PATH}")
     print("\nEvaluation summary:")
     print(f"Accuracy: {metrics['accuracy']}")
+    print(f"Baseline Accuracy: {metrics['baseline_accuracy']}")
     print(f"Precision: {metrics['precision']}")
     print(f"Recall: {metrics['recall']}")
     print(f"F1 Score: {metrics['f1_score']}")
+    print(f"CV F1 Mean: {metrics['cv_f1_mean']}")
+    print(f"CV F1 Std: {metrics['cv_f1_std']}")
+    print(f"Best Params: {metrics['best_params']}")
     print(f"Confusion Matrix: {metrics['confusion_matrix']}")
     print("\nClassification Report:")
     print(metrics["classification_report"])
