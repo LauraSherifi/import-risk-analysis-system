@@ -1,0 +1,55 @@
+DATA CLEANING REPORT
+==================================================
+
+Original dataset shape:
+(263821, 8)
+
+Cleaned dataset shape:
+(263821, 8)
+
+Missing values before cleaning:
+name                   0
+price ($)              0
+weight (kg)           13
+length (m)           184
+width (m)              0
+height (m)             0
+shipment date       2638
+destination port      26
+
+Missing values after cleaning:
+product_name        0
+price_usd           0
+weight_kg           0
+length_m            0
+width_m             0
+height_m            0
+shipment_date       0
+destination_port    0
+
+Invalid numeric values before cleaning:
+price_usd    0
+weight_kg    0
+length_m     0
+width_m      0
+height_m     0
+
+Duplicate rows removed:
+0
+
+Cleaning steps applied:
+- Validated required raw columns
+- Renamed columns to ML-friendly names
+- Cleaned text columns
+- Converted numeric columns
+- Converted shipment_date to datetime
+- Removed duplicate rows
+- Treated zero and negative numeric values as invalid
+- Filled missing numeric values using product-level median first
+- Used global median as fallback
+- Filled missing shipment dates using median shipment date
+- Saved cleaned dataset for feature engineering
+
+Output files:
+Cleaned dataset: C:\Users\admin\Desktop\import-risk-analysis-system\ml\data\processed\shipping_data_clean.csv
+Cleaning report: C:\Users\admin\Desktop\import-risk-analysis-system\ml\data\processed\cleaning_report.txt
