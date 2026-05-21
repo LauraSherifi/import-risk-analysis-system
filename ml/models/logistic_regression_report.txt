@@ -1,0 +1,18 @@
+Logistic Regression Evaluation
+Features: price_usd, weight_kg, volume_m3, max_dimension_m, dimension_sum_m, density_kg_m3, value_per_kg, value_per_m3, tax, tax_ratio
+
+Accuracy: 0.9931
+Precision: 0.9557
+Recall: 1.0
+F1 Score: 0.9774
+Confusion Matrix: [[44518, 365], [0, 7882]]
+
+Classification Report:
+              precision    recall  f1-score   support
+
+    LOW RISK       1.00      0.99      1.00     44883
+   HIGH RISK       0.96      1.00      0.98      7882
+
+    accuracy                           0.99     52765
+   macro avg       0.98      1.00      0.99     52765
+weighted avg       0.99      0.99      0.99     52765
