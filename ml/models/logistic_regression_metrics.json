@@ -1,0 +1,17 @@
+{
+  "accuracy": 0.9931,
+  "precision": 0.9557,
+  "recall": 1.0,
+  "f1_score": 0.9774,
+  "confusion_matrix": [
+    [
+      44518,
+      365
+    ],
+    [
+      0,
+      7882
+    ]
+  ],
+  "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       1.00      0.99      1.00     44883\n   HIGH RISK       0.96      1.00      0.98      7882\n\n    accuracy                           0.99     52765\n   macro avg       0.98      1.00      0.99     52765\nweighted avg       0.99      0.99      0.99     52765\n"
+}
