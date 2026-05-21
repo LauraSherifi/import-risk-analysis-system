@@ -1,8 +1,67 @@
 import "./App.css";
-import { NavLink, Route, Routes } from "react-router-dom";
-import PredictionView from "./pages/PredictionView";
 
-function AppLayout({ children }) {
+const overviewCards = [
+  { label: "Total Records", value: "263,821", note: "Final cleaned dataset" },
+  { label: "Dataset Columns", value: "17", note: "After feature engineering" },
+  { label: "Missing Values", value: "0", note: "Validated final dataset" },
+  { label: "Duplicate Rows", value: "0", note: "No duplicates found" },
+];
+
+const riskData = [
+  { label: "LOW RISK", value: 224414, percentage: 85.1 },
+  { label: "HIGH RISK", value: 39407, percentage: 14.9 },
+];
+
+const modelMetrics = [
+  { label: "Accuracy", value: 98.58 },
+  { label: "Macro F1", value: 97.18 },
+  { label: "Weighted F1", value: 98.57 },
+];
+
+const sampleRows = [
+  {
+    product: "Camera Bag",
+    price: "$37.66",
+    weight: "1.10 kg",
+    volume: "0.0406 m³",
+    taxRatio: "0.1662",
+    risk: "LOW RISK",
+  },
+  {
+    product: "Portable Bluetooth Keyboard",
+    price: "$144.65",
+    weight: "0.39 kg",
+    volume: "0.0002 m³",
+    taxRatio: "0.1159",
+    risk: "LOW RISK",
+  },
+  {
+    product: "Large Flat Rate Box",
+    price: "$38.57",
+    weight: "0.97 kg",
+    volume: "0.1521 m³",
+    taxRatio: "0.1789",
+    risk: "LOW RISK",
+  },
+  {
+    product: "Ceramic Tiles",
+    price: "$10.34",
+    weight: "6.22 kg",
+    volume: "0.0027 m³",
+    taxRatio: "0.1547",
+    risk: "LOW RISK",
+  },
+  {
+    product: "Garden Hose",
+    price: "$21.63",
+    weight: "1.18 kg",
+    volume: "0.6237 m³",
+    taxRatio: "0.0643",
+    risk: "HIGH RISK",
+  },
+];
+
+function App() {
   return (
     <div className="app">
       <aside className="sidebar">
@@ -11,102 +70,138 @@ function AppLayout({ children }) {
         <p>Analysis System</p>
 
         <nav>
-          <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
-            Dashboard
-          </NavLink>
-          <NavLink to="/predict" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
-            Prediction
-          </NavLink>
+          <button className="active">Dashboard</button>
+          <button>Dataset</button>
+          <button>Model</button>
+          <button>Risk</button>
         </nav>
       </aside>
 
-      <main className="main">{children}</main>
-    </div>
-  );
-}
-
-function Dashboard() {
-  return (
-    <AppLayout>
-      <header className="page-header">
-        <div>
-          <h1>Shipment Dataset Dashboard</h1>
-          <p>Overview of the cleaned shipment data prepared for risk analysis.</p>
-        </div>
-        <div className="header-badge">Dataset Insights</div>
-      </header>
-
-      <section className="cards">
-        <div className="card">
-          <span>Total Shipments</span>
-          <strong>263,821</strong>
-          <small>Processed records available for model training.</small>
-        </div>
-
-        <div className="card">
-          <span>Columns</span>
-          <strong>8</strong>
-          <small>Core shipment fields after cleaning and standardization.</small>
-        </div>
-
-        <div className="card">
-          <span>Prediction Features</span>
-          <strong>Tax-Based</strong>
-          <small>The prediction pipeline currently relies on tax and tax ratio values.</small>
-        </div>
-
-        <div className="card">
-          <span>Risk Output</span>
-          <strong>2 Labels</strong>
-          <small>Predictions are returned as either HIGH RISK or LOW RISK.</small>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-heading">
+      <main className="main">
+        <header className="page-header">
           <div>
-            <h3>Dataset Snapshot</h3>
-            <p>Quick summary of the information currently used across the dashboard and prediction flow.</p>
+            <h1>Shipment Risk Dashboard</h1>
+            <p>
+              Overview of the cleaned shipment dataset, engineered features and
+              KNN model performance.
+            </p>
           </div>
-        </div>
 
-        <div className="snapshot-grid">
-          <div className="snapshot-item">
-            <span>Main Value Field</span>
-            <strong>price_usd</strong>
-          </div>
-          <div className="snapshot-item">
-            <span>Calculated Feature</span>
-            <strong>tax_ratio</strong>
-          </div>
-          <div className="snapshot-item">
-            <span>Prediction Inputs</span>
-            <strong>Tax + Ratio</strong>
-          </div>
-          <div className="snapshot-item">
-            <span>Prediction Result</span>
-            <strong>Risk Label</strong>
-          </div>
-        </div>
-      </section>
-    </AppLayout>
-  );
-}
+          <div className="status-pill">Validated Dataset</div>
+        </header>
 
-function PredictionPage() {
-  return (
-    <AppLayout>
-      <PredictionView />
-    </AppLayout>
-  );
-}
+        <section className="cards">
+          {overviewCards.map((card) => (
+            <div className="card" key={card.label}>
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+              <p>{card.note}</p>
+            </div>
+          ))}
+        </section>
 
-function App() {
-  return (
-    <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/predict" element={<PredictionPage />} />
-    </Routes>
+        <section className="dashboard-grid">
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <h3>Risk Distribution</h3>
+                <p>Share of records classified as low or high risk.</p>
+              </div>
+            </div>
+
+            <div className="risk-chart">
+              {riskData.map((item) => (
+                <div className="risk-row" key={item.label}>
+                  <div className="risk-label">
+                    <span>{item.label}</span>
+                    <strong>{item.value.toLocaleString()}</strong>
+                  </div>
+                  <div className="bar-track">
+                    <div
+                      className={`bar-fill ${
+                        item.label === "HIGH RISK" ? "high-risk" : "low-risk"
+                      }`}
+                      style={{ width: `${item.percentage}%` }}
+                    />
+                  </div>
+                  <small>{item.percentage}%</small>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <h3>KNN Model Performance</h3>
+                <p>Evaluation results from the trained KNN model.</p>
+              </div>
+            </div>
+
+            <div className="metric-chart">
+              {modelMetrics.map((metric) => (
+                <div className="metric-row" key={metric.label}>
+                  <div className="metric-title">
+                    <span>{metric.label}</span>
+                    <strong>{metric.value}%</strong>
+                  </div>
+                  <div className="bar-track">
+                    <div
+                      className="bar-fill model-score"
+                      style={{ width: `${metric.value}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="panel table-panel">
+          <div className="panel-header">
+            <div>
+              <h3>Dataset Sample</h3>
+              <p>Example records from the final feature-engineered dataset.</p>
+            </div>
+          </div>
+
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Price</th>
+                  <th>Weight</th>
+                  <th>Volume</th>
+                  <th>Tax Ratio</th>
+                  <th>Risk</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sampleRows.map((row) => (
+                  <tr key={`${row.product}-${row.taxRatio}`}>
+                    <td>{row.product}</td>
+                    <td>{row.price}</td>
+                    <td>{row.weight}</td>
+                    <td>{row.volume}</td>
+                    <td>{row.taxRatio}</td>
+                    <td>
+                      <span
+                        className={`risk-badge ${
+                          row.risk === "HIGH RISK" ? "badge-high" : "badge-low"
+                        }`}
+                      >
+                        {row.risk}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }
 
