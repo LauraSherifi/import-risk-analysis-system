@@ -1,0 +1,66 @@
+{
+    "model": "KNN",
+    "features_used": [
+        "price_usd",
+        "weight_kg",
+        "length_m",
+        "width_m",
+        "height_m",
+        "volume_m3",
+        "max_dimension_m",
+        "dimension_sum_m",
+        "density_kg_m3",
+        "value_per_kg",
+        "value_per_m3",
+        "tax",
+        "tax_ratio"
+    ],
+    "rows_used": 60000,
+    "test_rows": 12000,
+    "accuracy": 0.9858,
+    "macro_f1": 0.9718,
+    "weighted_f1": 0.9857,
+    "classification_report": {
+        "LOW RISK": {
+            "precision": 0.9908068459657702,
+            "recall": 0.9924568965517241,
+            "f1-score": 0.9916311848480399,
+            "support": 10208.0
+        },
+        "HIGH RISK": {
+            "precision": 0.9566197183098591,
+            "recall": 0.9475446428571429,
+            "f1-score": 0.9520605550883096,
+            "support": 1792.0
+        },
+        "accuracy": 0.98575,
+        "macro avg": {
+            "precision": 0.9737132821378147,
+            "recall": 0.9700007697044335,
+            "f1-score": 0.9718458699681747,
+            "support": 12000.0
+        },
+        "weighted avg": {
+            "precision": 0.9857015682358209,
+            "recall": 0.98575,
+            "f1-score": 0.9857219708039202,
+            "support": 12000.0
+        }
+    },
+    "confusion_matrix": {
+        "labels": [
+            "LOW RISK",
+            "HIGH RISK"
+        ],
+        "matrix": [
+            [
+                10131,
+                77
+            ],
+            [
+                94,
+                1698
+            ]
+        ]
+    }
+}
