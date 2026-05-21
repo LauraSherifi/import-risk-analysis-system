@@ -5,7 +5,7 @@ import os
 
 # Initialize Flask app
 app = Flask(__name__)
-ML_API_PORT = int(os.environ.get("ML_API_PORT", 5001))
+ML_API_PORT = int(os.environ.get("ML_API_PORT", 8001))
 
 # Define the base directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

@@ -1,8 +1,8 @@
 const express = require("express");
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://127.0.0.1:5001";
+const PORT = process.env.PORT || 8000;
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://127.0.0.1:8001";
 const MAX_HISTORY_ITEMS = 100;
 const predictionHistory = [];
 let nextHistoryId = 1;
