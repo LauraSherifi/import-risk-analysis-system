@@ -84,10 +84,12 @@ function buildPredictionPayload(body) {
   };
 }
 
-function createHistoryEntry({ risk, input }) {
+function createHistoryEntry({ risk, confidence, probabilities, input }) {
   return {
     id: nextHistoryId++,
     risk,
+    confidence,
+    probabilities,
     input,
     created_at: new Date().toISOString()
   };
@@ -192,12 +194,16 @@ app.post("/predict", async (req, res) => {
 
     const historyEntry = createHistoryEntry({
       risk: data.prediction,
+      confidence: data.confidence ?? null,
+      probabilities: data.probabilities ?? null,
       input: predictionPayload.payload
     });
     addPredictionToHistory(historyEntry);
 
     res.json({
       risk: data.prediction,
+      confidence: data.confidence ?? null,
+      probabilities: data.probabilities ?? null,
       input: predictionPayload.payload,
       history_entry: historyEntry
     });
