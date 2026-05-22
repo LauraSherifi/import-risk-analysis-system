@@ -1,0 +1,53 @@
+[
+  {
+    "name": "baseline_64_32",
+    "layers": [
+      64,
+      32
+    ],
+    "dropout": 0.2,
+    "learning_rate": 0.001,
+    "batch_size": 64,
+    "epochs_requested": 25,
+    "epochs_ran": 15,
+    "accuracy": 0.9982,
+    "f1_score": 0.994,
+    "confusion_matrix": [
+      [
+        44835,
+        48
+      ],
+      [
+        46,
+        7836
+      ]
+    ],
+    "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       1.00      1.00      1.00     44883\n   HIGH RISK       0.99      0.99      0.99      7882\n\n    accuracy                           1.00     52765\n   macro avg       1.00      1.00      1.00     52765\nweighted avg       1.00      1.00      1.00     52765\n"
+  },
+  {
+    "name": "deeper_128_64_32",
+    "layers": [
+      128,
+      64,
+      32
+    ],
+    "dropout": 0.3,
+    "learning_rate": 0.0005,
+    "batch_size": 128,
+    "epochs_requested": 30,
+    "epochs_ran": 12,
+    "accuracy": 0.9966,
+    "f1_score": 0.9885,
+    "confusion_matrix": [
+      [
+        44865,
+        18
+      ],
+      [
+        161,
+        7721
+      ]
+    ],
+    "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       1.00      1.00      1.00     44883\n   HIGH RISK       1.00      0.98      0.99      7882\n\n    accuracy                           1.00     52765\n   macro avg       1.00      0.99      0.99     52765\nweighted avg       1.00      1.00      1.00     52765\n"
+  }
+]
