@@ -1,31 +1,65 @@
-import React, { useState } from "react";
+import { useMemo, useState } from "react";
+
+const initialFormData = {
+  price: "",
+  weight: "",
+  tax: "",
+};
+
+const formatPercent = (value) => {
+  if (value == null || Number.isNaN(Number(value))) {
+    return "Not available";
+  }
+
+  return `${(Number(value) * 100).toFixed(1)}%`;
+};
 
 const PredictionView = () => {
-  const [formData, setFormData] = useState({ price: "", weight: "", tax: "" });
+  const [formData, setFormData] = useState(initialFormData);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+  const price = Number(formData.price);
+  const tax = Number(formData.tax);
+  const taxRatioPreview = price > 0 ? Number((tax / price).toFixed(4)) : 0;
+  const isHighRisk = result?.risk === "HIGH RISK";
+
+  const probabilityRows = useMemo(() => {
+    if (!result?.probabilities) {
+      return [];
+    }
+
+    return Object.entries(result.probabilities).map(([label, value]) => ({
+      label,
+      value: Number(value),
+    }));
+  }, [result]);
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((current) => ({ ...current, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setLoading(true);
     setResult(null);
+    setError("");
 
     try {
-      const price = Number(formData.price);
-      const tax = Number(formData.tax);
-
       if (!price || price <= 0) {
-        throw new Error("Price must be greater than zero");
+        throw new Error("Price must be greater than zero.");
+      }
+
+      if (!Number.isFinite(tax) || tax < 0) {
+        throw new Error("Tax must be zero or greater.");
       }
 
       const payload = {
+        price,
         tax,
-        tax_ratio: Number((tax / price).toFixed(4)),
+        tax_ratio: taxRatioPreview,
       };
 
       const response = await fetch("/predict", {
@@ -38,38 +72,36 @@ const PredictionView = () => {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch prediction");
+        throw new Error(data.error || "Failed to fetch prediction.");
       }
 
-      setResult(data.risk);
-    } catch (error) {
-      setResult(`Error: ${error.message}`);
+      setResult(data);
+    } catch (submitError) {
+      setError(submitError.message);
     } finally {
       setLoading(false);
     }
   };
-
-  const price = Number(formData.price);
-  const tax = Number(formData.tax);
-  const taxRatioPreview = price > 0 ? (tax / price).toFixed(4) : "0.0000";
-  const isError = typeof result === "string" && result.startsWith("Error:");
 
   return (
     <>
       <header className="page-header">
         <div>
           <h1>Import Risk Prediction</h1>
-          <p>Enter shipment values below to estimate whether the transaction looks low or high risk.</p>
+          <p>
+            Enter shipment values to estimate whether the transaction looks low
+            or high risk.
+          </p>
         </div>
-        <div className="header-badge">ML Powered</div>
+        <div className="status-pill">ML Powered</div>
       </header>
 
       <section className="prediction-grid">
         <div className="panel">
-          <div className="panel-heading">
+          <div className="panel-header">
             <div>
               <h3>Prediction Form</h3>
-              <p>The current model uses tax and tax ratio to return a risk label.</p>
+              <p>The current prediction service uses tax and tax ratio.</p>
             </div>
           </div>
 
@@ -84,6 +116,7 @@ const PredictionView = () => {
                 required
                 min="0"
                 step="0.01"
+                placeholder="Example: 120.00"
               />
             </label>
 
@@ -94,9 +127,9 @@ const PredictionView = () => {
                 name="weight"
                 value={formData.weight}
                 onChange={handleChange}
-                required
                 min="0"
                 step="0.01"
+                placeholder="Optional"
               />
             </label>
 
@@ -110,42 +143,79 @@ const PredictionView = () => {
                 required
                 min="0"
                 step="0.01"
+                placeholder="Example: 18.00"
               />
             </label>
 
-            <button className="primary-button" type="submit">
+            <button className="primary-button" type="submit" disabled={loading}>
               {loading ? "Predicting..." : "Predict Risk"}
             </button>
           </form>
         </div>
 
         <div className="panel result-panel">
-          <div className="panel-heading">
+          <div className="panel-header">
             <div>
               <h3>Prediction Summary</h3>
-              <p>Quick preview of the values that are sent to the prediction service.</p>
+              <p>Preview of values sent to the prediction service.</p>
             </div>
           </div>
 
           <div className="summary-list">
             <div className="summary-row">
               <span>Entered Price</span>
-              <strong>{formData.price || "—"}</strong>
+              <strong>{formData.price || "-"}</strong>
             </div>
             <div className="summary-row">
               <span>Entered Tax</span>
-              <strong>{formData.tax || "—"}</strong>
+              <strong>{formData.tax || "-"}</strong>
             </div>
             <div className="summary-row">
               <span>Calculated Tax Ratio</span>
-              <strong>{taxRatioPreview}</strong>
+              <strong>{taxRatioPreview.toFixed(4)}</strong>
             </div>
           </div>
 
-          <div className={`prediction-result${isError ? " error" : ""}`}>
+          <div
+            className={`prediction-result ${
+              result ? (isHighRisk ? "result-high" : "result-low") : ""
+            } ${error ? "result-error" : ""}`}
+          >
             <span>Prediction Result</span>
-            <strong>{result || "Waiting for submission"}</strong>
+            <strong>
+              {loading && "Calculating..."}
+              {!loading && error}
+              {!loading && !error && (result?.risk || "Waiting for submission")}
+            </strong>
           </div>
+
+          {result && !error && (
+            <div className="confidence-panel">
+              <div className="confidence-header">
+                <span>Confidence</span>
+                <strong>{formatPercent(result.confidence)}</strong>
+              </div>
+              <div className="bar-track confidence-track">
+                <div
+                  className={`bar-fill ${
+                    isHighRisk ? "high-risk" : "low-risk"
+                  }`}
+                  style={{ width: `${Number(result.confidence || 0) * 100}%` }}
+                />
+              </div>
+
+              {probabilityRows.length > 0 && (
+                <div className="probability-list">
+                  {probabilityRows.map((item) => (
+                    <div className="probability-row" key={item.label}>
+                      <span>{item.label}</span>
+                      <strong>{formatPercent(item.value)}</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </section>
     </>

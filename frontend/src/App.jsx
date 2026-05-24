@@ -4,10 +4,10 @@ import "./App.css";
 import Dashboard from "./pages/Dashboard";
 import DatasetPage from "./pages/DatasetPage";
 import PredictionView from "./pages/PredictionView";
-import KNNModelPage from "./pages/KNNModelPage";
-import { completedModelPages } from "./config/modelPages";
 import PredictionHistoryPage from "./pages/PredictionHistoryPage";
+import KNNModelPage from "./pages/KNNModelPage";
 import LogisticRegressionModelPage from "./pages/LogisticRegressionModelPage";
+import { completedModelPages } from "./config/modelPages";
 
 function App() {
   return (
@@ -22,17 +22,11 @@ function App() {
             Dashboard
           </NavLink>
 
-          <NavLink to="/dataset">
-            Dataset
-          </NavLink>
+          <NavLink to="/dataset">Dataset</NavLink>
 
-          <NavLink to="/prediction">
-            Prediction
-          </NavLink>
+          <NavLink to="/prediction">Prediction</NavLink>
 
-          <NavLink to="/prediction-history">
-            Prediction History
-          </NavLink>
+          <NavLink to="/prediction-history">Prediction History</NavLink>
 
           <div className="nav-section-title">Completed Models</div>
 
@@ -51,7 +45,11 @@ function App() {
           <Route path="/prediction" element={<PredictionView />} />
           <Route path="/prediction-history" element={<PredictionHistoryPage />} />
           <Route path="/models/knn" element={<KNNModelPage />} />
-          <Route path="/models/logistic-regression" element={<LogisticRegressionModelPage />} />
+          <Route
+            path="/models/logistic-regression"
+            element={<LogisticRegressionModelPage />}
+          />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

@@ -17,6 +17,35 @@ model_path = os.path.join(BASE_DIR, "models", "import_risk_classifier.joblib")
 model = joblib.load(model_path)
 
 
+def build_probability_summary(input_features, prediction_label):
+    if not hasattr(model, "predict_proba"):
+        return {
+            "confidence": None,
+            "probabilities": None,
+        }
+
+    probabilities = model.predict_proba(input_features)[0]
+    classes = getattr(model, "classes_", [0, 1])
+    probability_map = {}
+
+    for class_value, probability in zip(classes, probabilities):
+        label = str(class_value)
+        if label in {"0", "0.0"}:
+            label = "LOW RISK"
+        elif label in {"1", "1.0"}:
+            label = "HIGH RISK"
+        probability_map[label] = round(float(probability), 4)
+
+    confidence = probability_map.get(prediction_label)
+    if confidence is None and probability_map:
+        confidence = max(probability_map.values())
+
+    return {
+        "confidence": confidence,
+        "probabilities": probability_map,
+    }
+
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "ok"})
@@ -41,8 +70,13 @@ def predict():
 
         # Map prediction to human-readable output
         prediction_label = "HIGH RISK" if prediction[0] == 1 else "LOW RISK"
+        probability_summary = build_probability_summary(input_features, prediction_label)
 
-        return jsonify({"prediction": prediction_label})
+        return jsonify({
+            "prediction": prediction_label,
+            "confidence": probability_summary["confidence"],
+            "probabilities": probability_summary["probabilities"],
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
