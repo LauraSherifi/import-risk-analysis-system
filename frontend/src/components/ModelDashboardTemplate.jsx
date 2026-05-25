@@ -1,3 +1,5 @@
+import PropTypes from "prop-types";
+
 import ProgressBar from "./ProgressBar";
 import StatCard from "./StatCard";
 
@@ -64,5 +66,25 @@ function ModelDashboardTemplate({
     </>
   );
 }
+
+ModelDashboardTemplate.propTypes = {
+  title: PropTypes.string.isRequired,
+  subtitle: PropTypes.string.isRequired,
+  status: PropTypes.string.isRequired,
+  cards: PropTypes.arrayOf(
+    PropTypes.shape({
+      label: PropTypes.string.isRequired,
+      value: PropTypes.string.isRequired,
+      note: PropTypes.string.isRequired,
+    })
+  ).isRequired,
+  metrics: PropTypes.arrayOf(
+    PropTypes.shape({
+      label: PropTypes.string.isRequired,
+      value: PropTypes.number.isRequired,
+    })
+  ).isRequired,
+  notes: PropTypes.string,
+};
 
 export default ModelDashboardTemplate;

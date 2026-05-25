@@ -1,3 +1,5 @@
+import PropTypes from "prop-types";
+
 function ProgressBar({ label, value, variant = "model" }) {
   return (
     <div className="metric-row">
@@ -15,5 +17,11 @@ function ProgressBar({ label, value, variant = "model" }) {
     </div>
   );
 }
+
+ProgressBar.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.number.isRequired,
+  variant: PropTypes.string,
+};
 
 export default ProgressBar;

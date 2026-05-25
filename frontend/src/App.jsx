@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import DatasetPage from "./pages/DatasetPage";
 import PredictionView from "./pages/PredictionView";
 import PredictionHistoryPage from "./pages/PredictionHistoryPage";
+import RiskMapPage from "./pages/RiskMapPage";
 import KNNModelPage from "./pages/KNNModelPage";
 import LogisticRegressionModelPage from "./pages/LogisticRegressionModelPage";
 import StarterPage from "./pages/StarterPage";
@@ -23,6 +24,7 @@ function App() {
           <Route path="dataset" element={<DatasetPage />} />
           <Route path="prediction" element={<PredictionView />} />
           <Route path="prediction-history" element={<PredictionHistoryPage />} />
+          <Route path="risk-map" element={<RiskMapPage />} />
           <Route path="models/knn" element={<KNNModelPage />} />
           <Route
             path="models/logistic-regression"
@@ -38,6 +40,7 @@ function App() {
         path="/prediction-history"
         element={<Navigate to="/app/prediction-history" replace />}
       />
+      <Route path="/risk-map" element={<Navigate to="/app/risk-map" replace />} />
       <Route path="/models/knn" element={<Navigate to="/app/models/knn" replace />} />
       <Route
         path="/models/logistic-regression"

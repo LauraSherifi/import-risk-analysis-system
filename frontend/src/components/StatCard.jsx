@@ -1,3 +1,5 @@
+import PropTypes from "prop-types";
+
 function StatCard({ label, value, note }) {
   return (
     <div className="card">
@@ -7,5 +9,11 @@ function StatCard({ label, value, note }) {
     </div>
   );
 }
+
+StatCard.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.string.isRequired,
+  note: PropTypes.string.isRequired,
+};
 
 export default StatCard;
