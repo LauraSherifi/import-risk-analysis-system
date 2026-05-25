@@ -1,19 +1,105 @@
+const crypto = require("crypto");
 const express = require("express");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://127.0.0.1:8001";
 const MAX_HISTORY_ITEMS = 100;
+const AUTH_SECRET = process.env.AUTH_SECRET || "change-this-secret";
+const ADMIN_ID = process.env.ADMIN_ID || "admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
+const TOKEN_TTL_MS = 1000 * 60 * 60 * 8;
 const predictionHistory = [];
 let nextHistoryId = 1;
 
 app.use(express.json());
 
+function encodeBase64Url(value) {
+  return Buffer.from(value)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function decodeBase64Url(value) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = normalized.length % 4 === 0 ? "" : "=".repeat(4 - (normalized.length % 4));
+  return Buffer.from(`${normalized}${padding}`, "base64").toString("utf8");
+}
+
+function signValue(value) {
+  return crypto.createHmac("sha256", AUTH_SECRET).update(value).digest("hex");
+}
+
+function createAuthToken(adminId) {
+  const payload = {
+    adminId,
+    exp: Date.now() + TOKEN_TTL_MS,
+  };
+
+  const encodedPayload = encodeBase64Url(JSON.stringify(payload));
+  const signature = signValue(encodedPayload);
+
+  return {
+    token: `${encodedPayload}.${signature}`,
+    expiresAt: new Date(payload.exp).toISOString(),
+  };
+}
+
+function verifyAuthToken(token) {
+  if (!token || !token.includes(".")) {
+    return null;
+  }
+
+  const [encodedPayload, signature] = token.split(".");
+  if (!encodedPayload || !signature) {
+    return null;
+  }
+
+  const expectedSignature = signValue(encodedPayload);
+  if (signature !== expectedSignature) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(decodeBase64Url(encodedPayload));
+    if (!payload?.adminId || !payload?.exp || payload.exp < Date.now()) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function getBearerToken(request) {
+  const authHeader = request.headers.authorization || "";
+  if (!authHeader.startsWith("Bearer ")) {
+    return "";
+  }
+
+  return authHeader.slice("Bearer ".length);
+}
+
+function requireAuth(request, response, next) {
+  const payload = verifyAuthToken(getBearerToken(request));
+  if (!payload) {
+    return response.status(401).json({
+      error: "Authentication required",
+    });
+  }
+
+  request.auth = payload;
+  next();
+}
+
 function parseNonNegativeNumber(value, fieldName) {
   if (value == null || value === "") {
     return {
       ok: false,
-      error: `Missing required field: ${fieldName}`
+      error: `Missing required field: ${fieldName}`,
     };
   }
 
@@ -22,20 +108,20 @@ function parseNonNegativeNumber(value, fieldName) {
   if (!Number.isFinite(parsedValue)) {
     return {
       ok: false,
-      error: `${fieldName} must be a valid number`
+      error: `${fieldName} must be a valid number`,
     };
   }
 
   if (parsedValue < 0) {
     return {
       ok: false,
-      error: `${fieldName} must be greater than or equal to 0`
+      error: `${fieldName} must be greater than or equal to 0`,
     };
   }
 
   return {
     ok: true,
-    value: parsedValue
+    value: parsedValue,
   };
 }
 
@@ -55,8 +141,8 @@ function buildPredictionPayload(body) {
       ok: true,
       payload: {
         tax: Number(taxResult.value.toFixed(2)),
-        tax_ratio: Number(taxRatioResult.value.toFixed(4))
-      }
+        tax_ratio: Number(taxRatioResult.value.toFixed(4)),
+      },
     };
   }
 
@@ -64,14 +150,14 @@ function buildPredictionPayload(body) {
   if (!priceResult.ok) {
     return {
       ok: false,
-      error: "Provide either tax_ratio directly or provide price so tax_ratio can be calculated"
+      error: "Provide either tax_ratio directly or provide price so tax_ratio can be calculated",
     };
   }
 
   if (priceResult.value === 0) {
     return {
       ok: false,
-      error: "price must be greater than 0 when tax_ratio is not provided"
+      error: "price must be greater than 0 when tax_ratio is not provided",
     };
   }
 
@@ -79,8 +165,8 @@ function buildPredictionPayload(body) {
     ok: true,
     payload: {
       tax: Number(taxResult.value.toFixed(2)),
-      tax_ratio: Number((taxResult.value / priceResult.value).toFixed(4))
-    }
+      tax_ratio: Number((taxResult.value / priceResult.value).toFixed(4)),
+    },
   };
 }
 
@@ -91,7 +177,7 @@ function createHistoryEntry({ risk, confidence, probabilities, input }) {
     confidence,
     probabilities,
     input,
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
   };
 }
 
@@ -108,7 +194,7 @@ function buildHistorySummary() {
     total_predictions: predictionHistory.length,
     high_risk_count: 0,
     low_risk_count: 0,
-    latest_prediction_at: predictionHistory[0]?.created_at ?? null
+    latest_prediction_at: predictionHistory[0]?.created_at ?? null,
   };
 
   for (const entry of predictionHistory) {
@@ -124,34 +210,58 @@ function buildHistorySummary() {
 
 app.get("/", (req, res) => {
   res.json({
-    message: "Import Risk Analysis backend is running."
+    message: "Import Risk Analysis backend is running.",
+  });
+});
+
+app.post("/auth/login", (request, response) => {
+  const { adminId, password } = request.body || {};
+
+  if (adminId !== ADMIN_ID || password !== ADMIN_PASSWORD) {
+    return response.status(401).json({
+      error: "Invalid admin credentials",
+    });
+  }
+
+  const authToken = createAuthToken(adminId);
+  response.json({
+    adminId,
+    token: authToken.token,
+    expiresAt: authToken.expiresAt,
+  });
+});
+
+app.get("/auth/session", requireAuth, (request, response) => {
+  response.json({
+    adminId: request.auth.adminId,
+    expiresAt: new Date(request.auth.exp).toISOString(),
   });
 });
 
 app.get("/health", (req, res) => {
   res.status(200).json({
-    status: "ok"
+    status: "ok",
   });
 });
 
-app.get("/prediction-history", (req, res) => {
+app.get("/prediction-history", requireAuth, (req, res) => {
   res.json({
     total: predictionHistory.length,
-    items: predictionHistory
+    items: predictionHistory,
   });
 });
 
-app.get("/prediction-history/summary", (req, res) => {
+app.get("/prediction-history/summary", requireAuth, (req, res) => {
   res.json(buildHistorySummary());
 });
 
-app.get("/ml-health", async (req, res) => {
+app.get("/ml-health", requireAuth, async (req, res) => {
   try {
     const response = await fetch(`${ML_SERVICE_URL}/health`);
 
     if (!response.ok) {
       return res.status(502).json({
-        error: "ML service is unavailable"
+        error: "ML service is unavailable",
       });
     }
 
@@ -160,18 +270,17 @@ app.get("/ml-health", async (req, res) => {
   } catch (error) {
     console.error("Error reaching ML service:", error);
     res.status(502).json({
-      error: "Unable to connect to the ML service"
+      error: "Unable to connect to the ML service",
     });
   }
 });
 
-// POST /predict endpoint
-app.post("/predict", async (req, res) => {
+app.post("/predict", requireAuth, async (req, res) => {
   const predictionPayload = buildPredictionPayload(req.body || {});
 
   if (!predictionPayload.ok) {
     return res.status(400).json({
-      error: predictionPayload.error
+      error: predictionPayload.error,
     });
   }
 
@@ -179,16 +288,16 @@ app.post("/predict", async (req, res) => {
     const response = await fetch(`${ML_SERVICE_URL}/predict`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(predictionPayload.payload)
+      body: JSON.stringify(predictionPayload.payload),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
       return res.status(response.status).json({
-        error: data.error || "Prediction request failed"
+        error: data.error || "Prediction request failed",
       });
     }
 
@@ -196,7 +305,7 @@ app.post("/predict", async (req, res) => {
       risk: data.prediction,
       confidence: data.confidence ?? null,
       probabilities: data.probabilities ?? null,
-      input: predictionPayload.payload
+      input: predictionPayload.payload,
     });
     addPredictionToHistory(historyEntry);
 
@@ -205,12 +314,12 @@ app.post("/predict", async (req, res) => {
       confidence: data.confidence ?? null,
       probabilities: data.probabilities ?? null,
       input: predictionPayload.payload,
-      history_entry: historyEntry
+      history_entry: historyEntry,
     });
   } catch (error) {
     console.error("Error during prediction:", error);
     res.status(502).json({
-      error: "Failed to reach the ML prediction service"
+      error: "Failed to reach the ML prediction service",
     });
   }
 });

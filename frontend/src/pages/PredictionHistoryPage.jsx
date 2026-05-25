@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getAuthHeaders } from "../auth";
 
 function PredictionHistoryPage() {
   const [summary, setSummary] = useState(null);
@@ -8,8 +9,13 @@ function PredictionHistoryPage() {
   useEffect(() => {
     const loadPredictionHistory = async () => {
       try {
-        const summaryResponse = await fetch("/prediction-history/summary");
-        const historyResponse = await fetch("/prediction-history");
+        const headers = getAuthHeaders();
+        const summaryResponse = await fetch("/prediction-history/summary", {
+          headers,
+        });
+        const historyResponse = await fetch("/prediction-history", {
+          headers,
+        });
 
         if (!summaryResponse.ok || !historyResponse.ok) {
           throw new Error("Unable to load prediction history");

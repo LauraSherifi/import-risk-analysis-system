@@ -7,6 +7,10 @@ export default defineConfig({
   server: {
     port: 8002,
     proxy: {
+      '/auth': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
       '/predict': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
