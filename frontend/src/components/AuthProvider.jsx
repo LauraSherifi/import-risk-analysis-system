@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import {
   clearAuthSession,
-  getAuthHeaders,
+  isAuthSessionExpired,
   loadAuthSession,
   saveAuthSession,
 } from "../auth";
@@ -14,37 +14,18 @@ function AuthProvider({ children }) {
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    const restoreSession = async () => {
+    const restoreSession = () => {
       const savedSession = loadAuthSession();
-      if (!savedSession?.token) {
+      if (!savedSession?.token || isAuthSessionExpired(savedSession)) {
+        clearAuthSession();
+        setSession(null);
         setIsChecking(false);
         return;
       }
 
-      try {
-        const response = await fetch("/auth/session", {
-          headers: getAuthHeaders(),
-        });
-
-        if (!response.ok) {
-          throw new Error("Session expired");
-        }
-
-        const data = await response.json();
-        const nextSession = {
-          token: savedSession.token,
-          adminId: data.adminId,
-          expiresAt: data.expiresAt,
-        };
-
-        saveAuthSession(nextSession);
-        setSession(nextSession);
-      } catch {
-        clearAuthSession();
-        setSession(null);
-      } finally {
-        setIsChecking(false);
-      }
+      saveAuthSession(savedSession);
+      setSession(savedSession);
+      setIsChecking(false);
     };
 
     restoreSession();

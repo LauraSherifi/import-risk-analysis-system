@@ -104,13 +104,17 @@ function StarterPage() {
               x
             </button>
 
-            <p className="login-kicker">Restricted Access</p>
-            <h2 id="admin-login-title">Admin Login</h2>
-            <p className="login-copy">
-              Sign in to access shipment dashboards, prediction tools, and client reporting.
-            </p>
+            <div className="login-modal-header">
+              <p className="login-kicker">Restricted Access</p>
+              <h2 id="admin-login-title">Admin Login</h2>
+              <p className="login-copy">
+                Sign in to access shipment dashboards,
+                <br />
+                prediction tools, and client reporting.
+              </p>
+            </div>
 
-            <form className="starter-form" onSubmit={handleLogin}>
+            <form className="starter-form compact-login-form" onSubmit={handleLogin}>
               <label className="field">
                 <span>Account</span>
                 <input
@@ -137,6 +141,9 @@ function StarterPage() {
             </form>
 
             {error && <p className="login-error">{error}</p>}
+            <p className="login-helper-text">
+              Secure client-only access to the import risk workspace.
+            </p>
           </div>
         </div>
       )}

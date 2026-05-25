@@ -18,6 +18,15 @@ export function loadAuthSession() {
   }
 }
 
+export function isAuthSessionExpired(session) {
+  if (!session?.expiresAt) {
+    return true;
+  }
+
+  const expiresAt = new Date(session.expiresAt).getTime();
+  return !Number.isFinite(expiresAt) || expiresAt <= Date.now();
+}
+
 export function clearAuthSession() {
   localStorage.removeItem(AUTH_STORAGE_KEY);
 }

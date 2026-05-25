@@ -26,12 +26,13 @@ body {
 
 .card,
 .panel,
-.login-modal {
-  background: rgba(255, 255, 255, 0.86);
+.login-modal,
+.logout-modal {
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(14px);
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 24px;
-  box-shadow: 0 20px 48px rgba(15, 76, 129, 0.12);
+  box-shadow: 0 24px 56px rgba(15, 76, 129, 0.16);
 }
 
 .starter-layout {
@@ -170,11 +171,16 @@ body {
   backdrop-filter: blur(10px);
 }
 
-.login-modal,
 .logout-modal {
   position: relative;
   width: min(420px, 100%);
   padding: 30px;
+}
+
+.login-modal {
+  position: relative;
+  width: min(420px, 100%);
+  padding: 28px 28px 24px;
 }
 
 .modal-close {
@@ -191,38 +197,78 @@ body {
   cursor: pointer;
 }
 
+.modal-close:hover {
+  background: #dbe7f3;
+}
+
+.login-modal-header {
+  padding-right: 34px;
+  text-align: center;
+}
+
 .login-kicker {
   color: #be6c1f;
+  margin: 0 0 8px;
+  justify-content: center;
+  width: 100%;
 }
 
 .login-modal h2 {
-  margin: 10px 0 0;
+  margin: 0;
   color: #0f4c81;
-  font-size: 32px;
+  font-size: 30px;
+  text-align: center;
 }
 
 .login-copy {
-  margin: 10px 0 0;
+  max-width: 28ch;
+  margin: 10px auto 0;
   color: #64748b;
   line-height: 1.65;
+  text-align: center;
 }
 
 .starter-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-top: 22px;
+  margin-top: 24px;
+}
+
+.compact-login-form {
+  width: min(280px, 100%);
+  margin: 24px auto 0;
+  align-items: center;
+}
+
+.compact-login-form .field {
+  width: 100%;
+  text-align: left;
+}
+
+.compact-login-form .field input {
+  width: 100%;
 }
 
 .login-button {
   margin-top: 4px;
+  width: 100%;
 }
 
 .login-error {
-  margin: 8px 0 0;
+  margin: 12px 0 0;
   color: #b42318;
   font-size: 14px;
   font-weight: 700;
+  text-align: center;
+}
+
+.login-helper-text {
+  margin: 14px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
 }
 
 .starter-copy h1 {
@@ -825,7 +871,7 @@ td {
 
   .login-modal,
   .logout-modal {
-    padding: 24px;
+    padding: 24px 22px 22px;
   }
 
   .app-shell {
