@@ -19,7 +19,7 @@ const overviewCards = [
   },
   {
     label: "Model-ready Features",
-    value: "17",
+    value: "13",
     note: "After feature engineering",
   },
 ];
@@ -27,6 +27,46 @@ const overviewCards = [
 const riskData = [
   { label: "LOW RISK", value: 224414, percentage: 85.1 },
   { label: "HIGH RISK", value: 39407, percentage: 14.9 },
+];
+
+const circularStats = [
+  {
+    label: "Low Risk",
+    value: 85.1,
+    detail: "224,414 records",
+    className: "circle-low",
+  },
+  {
+    label: "High Risk",
+    value: 14.9,
+    detail: "39,407 records",
+    className: "circle-high",
+  },
+  {
+    label: "KNN Accuracy",
+    value: 98.58,
+    detail: "Best completed model",
+    className: "circle-model",
+  },
+  {
+    label: "Logistic Accuracy",
+    value: 49.92,
+    detail: "Benchmark model",
+    className: "circle-benchmark",
+  },
+];
+const confusionMatrix = [
+  { actual: "LOW RISK", predicted: "LOW RISK", value: "10,131", type: "correct" },
+  { actual: "LOW RISK", predicted: "HIGH RISK", value: "77", type: "error" },
+  { actual: "HIGH RISK", predicted: "LOW RISK", value: "94", type: "error" },
+  { actual: "HIGH RISK", predicted: "HIGH RISK", value: "1,698", type: "correct" },
+];
+
+const metricsMatrix = [
+  { metric: "Accuracy", knn: "98.58%", logistic: "49.92%" },
+  { metric: "F1 Score", knn: "97.18%", logistic: "22.88%" },
+  { metric: "Precision", knn: "95.66%", logistic: "14.86%" },
+  { metric: "Recall", knn: "94.75%", logistic: "49.75%" },
 ];
 
 const completedModels = [
@@ -154,6 +194,37 @@ function Dashboard() {
         ))}
       </section>
 
+
+
+      <section className="panel dashboard-section">
+  <div className="panel-header">
+    <div>
+      <h3>Performance Snapshot</h3>
+      <p>
+        Circular overview of risk balance and completed model performance.
+      </p>
+    </div>
+  </div>
+
+  <div className="circle-chart-grid">
+    {circularStats.map((item) => (
+      <div className="circle-chart-card" key={item.label}>
+        <div
+          className={`circle-chart ${item.className}`}
+          style={{ "--value": `${item.value}%` }}
+        >
+          <div className="circle-chart-inner">
+            <strong>{item.value}%</strong>
+            <span>{item.label}</span>
+          </div>
+        </div>
+
+        <p>{item.detail}</p>
+      </div>
+    ))}
+  </div>
+</section>
+
       <section className="dashboard-grid">
         <div className="panel">
           <div className="panel-header">
@@ -241,6 +312,68 @@ function Dashboard() {
           ))}
         </div>
       </section>
+
+      <section className="dashboard-grid">
+  <div className="panel">
+    <div className="panel-header">
+      <div>
+        <h3>KNN Confusion Matrix</h3>
+        <p>
+          Model evaluation matrix showing correct and incorrect classifications.
+        </p>
+      </div>
+    </div>
+
+    <div className="confusion-matrix">
+      <div className="matrix-corner" />
+      <div className="matrix-axis">Predicted Low</div>
+      <div className="matrix-axis">Predicted High</div>
+
+      <div className="matrix-axis">Actual Low</div>
+      {confusionMatrix.slice(0, 2).map((cell) => (
+        <div className={`matrix-cell ${cell.type}`} key={`${cell.actual}-${cell.predicted}`}>
+          <strong>{cell.value}</strong>
+          <span>{cell.predicted}</span>
+        </div>
+      ))}
+
+      <div className="matrix-axis">Actual High</div>
+      {confusionMatrix.slice(2, 4).map((cell) => (
+        <div className={`matrix-cell ${cell.type}`} key={`${cell.actual}-${cell.predicted}`}>
+          <strong>{cell.value}</strong>
+          <span>{cell.predicted}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <div className="panel">
+    <div className="panel-header">
+      <div>
+        <h3>Model Metrics Matrix</h3>
+        <p>
+          Side-by-side comparison of completed model results.
+        </p>
+      </div>
+    </div>
+
+    <div className="metrics-heatmap">
+      <div className="heatmap-row heatmap-header">
+        <span>Metric</span>
+        <strong>KNN</strong>
+        <strong>Logistic</strong>
+      </div>
+
+      {metricsMatrix.map((row) => (
+        <div className="heatmap-row" key={row.metric}>
+          <span>{row.metric}</span>
+          <strong className="heatmap-strong">{row.knn}</strong>
+          <strong className="heatmap-weak">{row.logistic}</strong>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
 
       <section className="dashboard-grid">
         <div className="panel">
