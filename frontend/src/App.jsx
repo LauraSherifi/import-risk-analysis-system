@@ -5,7 +5,6 @@ import AppShell from "./components/AppShell";
 import Dashboard from "./pages/Dashboard";
 import DatasetPage from "./pages/DatasetPage";
 import PredictionView from "./pages/PredictionView";
-import PredictionHistoryPage from "./pages/PredictionHistoryPage";
 import RiskMapPage from "./pages/RiskMapPage";
 import KNNModelPage from "./pages/KNNModelPage";
 import LogisticRegressionModelPage from "./pages/LogisticRegressionModelPage";
@@ -23,7 +22,6 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="dataset" element={<DatasetPage />} />
           <Route path="prediction" element={<PredictionView />} />
-          <Route path="prediction-history" element={<PredictionHistoryPage />} />
           <Route path="risk-map" element={<RiskMapPage />} />
           <Route path="models/knn" element={<KNNModelPage />} />
           <Route
@@ -36,10 +34,7 @@ function App() {
       <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
       <Route path="/dataset" element={<Navigate to="/app/dataset" replace />} />
       <Route path="/prediction" element={<Navigate to="/app/prediction" replace />} />
-      <Route
-        path="/prediction-history"
-        element={<Navigate to="/app/prediction-history" replace />}
-      />
+      <Route path="/prediction-history" element={<Navigate to="/app/prediction" replace />} />
       <Route path="/risk-map" element={<Navigate to="/app/risk-map" replace />} />
       <Route path="/models/knn" element={<Navigate to="/app/models/knn" replace />} />
       <Route

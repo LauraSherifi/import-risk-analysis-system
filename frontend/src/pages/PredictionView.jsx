@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getAuthHeaders } from "../auth";
 
 const initialFormData = {
@@ -21,6 +21,10 @@ const PredictionView = () => {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
+  const [summary, setSummary] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyError, setHistoryError] = useState("");
+
   const price = Number(formData.price);
   const tax = Number(formData.tax);
   const taxRatioPreview = price > 0 ? Number((tax / price).toFixed(4)) : 0;
@@ -36,6 +40,37 @@ const PredictionView = () => {
       value: Number(value),
     }));
   }, [result]);
+
+  const loadPredictionHistory = async () => {
+    try {
+      const headers = getAuthHeaders();
+
+      const summaryResponse = await fetch("/prediction-history/summary", {
+        headers,
+      });
+
+      const historyResponse = await fetch("/prediction-history", {
+        headers,
+      });
+
+      if (!summaryResponse.ok || !historyResponse.ok) {
+        throw new Error("Unable to load prediction history");
+      }
+
+      const summaryData = await summaryResponse.json();
+      const historyData = await historyResponse.json();
+
+      setSummary(summaryData);
+      setHistory(historyData.items || []);
+      setHistoryError("");
+    } catch (loadError) {
+      setHistoryError(loadError.message);
+    }
+  };
+
+  useEffect(() => {
+    loadPredictionHistory();
+  }, []);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -73,11 +108,13 @@ const PredictionView = () => {
       });
 
       const data = await response.json();
+
       if (!response.ok) {
         throw new Error(data.error || "Failed to fetch prediction.");
       }
 
       setResult(data);
+      await loadPredictionHistory();
     } catch (submitError) {
       setError(submitError.message);
     } finally {
@@ -91,8 +128,8 @@ const PredictionView = () => {
         <div>
           <h1>Import Risk Prediction</h1>
           <p>
-            Enter shipment values to estimate whether the transaction looks low
-            or high risk.
+            Enter shipment values, generate a risk prediction, and review recent
+            prediction history in one workspace.
           </p>
         </div>
         <div className="status-pill">ML Powered</div>
@@ -168,10 +205,12 @@ const PredictionView = () => {
               <span>Entered Price</span>
               <strong>{formData.price || "-"}</strong>
             </div>
+
             <div className="summary-row">
               <span>Entered Tax</span>
               <strong>{formData.tax || "-"}</strong>
             </div>
+
             <div className="summary-row">
               <span>Calculated Tax Ratio</span>
               <strong>{taxRatioPreview.toFixed(4)}</strong>
@@ -197,6 +236,7 @@ const PredictionView = () => {
                 <span>Confidence</span>
                 <strong>{formatPercent(result.confidence)}</strong>
               </div>
+
               <div className="bar-track confidence-track">
                 <div
                   className={`bar-fill ${
@@ -218,6 +258,101 @@ const PredictionView = () => {
               )}
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="cards prediction-history-cards">
+        <div className="card">
+          <span>Total Predictions</span>
+          <strong>{summary?.total_predictions ?? 0}</strong>
+          <p>Stored in current backend session</p>
+        </div>
+
+        <div className="card">
+          <span>High Risk</span>
+          <strong>{summary?.high_risk_count ?? 0}</strong>
+          <p>Predictions classified as high risk</p>
+        </div>
+
+        <div className="card">
+          <span>Low Risk</span>
+          <strong>{summary?.low_risk_count ?? 0}</strong>
+          <p>Predictions classified as low risk</p>
+        </div>
+
+        <div className="card">
+          <span>Latest Prediction</span>
+          <strong>{summary?.latest_prediction_at ? "Available" : "—"}</strong>
+          <p>{summary?.latest_prediction_at || "No prediction submitted yet"}</p>
+        </div>
+      </section>
+
+      <section className="panel table-panel">
+        <div className="panel-header">
+          <div>
+            <h3>Recent Predictions</h3>
+            <p>
+              Latest prediction requests saved by the backend during the current
+              running session.
+            </p>
+          </div>
+
+          <button
+            className="secondary-button compact-button"
+            type="button"
+            onClick={loadPredictionHistory}
+          >
+            Refresh History
+          </button>
+        </div>
+
+        {historyError && (
+          <div className="prediction-result result-error">
+            <span>Connection Error</span>
+            <strong>{historyError}</strong>
+          </div>
+        )}
+
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Risk</th>
+                <th>Tax</th>
+                <th>Tax Ratio</th>
+                <th>Created At</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {history.length === 0 ? (
+                <tr>
+                  <td colSpan="5">No prediction history available yet.</td>
+                </tr>
+              ) : (
+                history.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.id}</td>
+                    <td>
+                      <span
+                        className={`risk-badge ${
+                          item.risk === "HIGH RISK"
+                            ? "badge-high"
+                            : "badge-low"
+                        }`}
+                      >
+                        {item.risk}
+                      </span>
+                    </td>
+                    <td>{item.input?.tax}</td>
+                    <td>{item.input?.tax_ratio}</td>
+                    <td>{item.created_at}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
     </>
