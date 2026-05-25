@@ -1,59 +1,51 @@
-import { Routes, Route, NavLink, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 
+import AppShell from "./components/AppShell";
 import Dashboard from "./pages/Dashboard";
 import DatasetPage from "./pages/DatasetPage";
 import PredictionView from "./pages/PredictionView";
 import PredictionHistoryPage from "./pages/PredictionHistoryPage";
 import KNNModelPage from "./pages/KNNModelPage";
 import LogisticRegressionModelPage from "./pages/LogisticRegressionModelPage";
-import { completedModelPages } from "./config/modelPages";
+import StarterPage from "./pages/StarterPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
-    <div className="app">
-      <aside className="sidebar">
-        <div className="logo">🚢</div>
-        <h2>Shipment Risk</h2>
-        <p>Analysis System</p>
+    <Routes>
+      <Route path="/" element={<StarterPage />} />
 
-        <nav>
-          <NavLink to="/" end>
-            Dashboard
-          </NavLink>
-
-          <NavLink to="/dataset">Dataset</NavLink>
-
-          <NavLink to="/prediction">Prediction</NavLink>
-
-          <NavLink to="/prediction-history">Prediction History</NavLink>
-
-          <div className="nav-section-title">Completed Models</div>
-
-          {completedModelPages.map((model) => (
-            <NavLink key={model.id} to={model.path}>
-              {model.label}
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
-
-      <main className="main">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/dataset" element={<DatasetPage />} />
-          <Route path="/prediction" element={<PredictionView />} />
-          <Route path="/prediction-history" element={<PredictionHistoryPage />} />
-          <Route path="/models/knn" element={<KNNModelPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/app" element={<AppShell />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="dataset" element={<DatasetPage />} />
+          <Route path="prediction" element={<PredictionView />} />
+          <Route path="prediction-history" element={<PredictionHistoryPage />} />
+          <Route path="models/knn" element={<KNNModelPage />} />
           <Route
-            path="/models/logistic-regression"
+            path="models/logistic-regression"
             element={<LogisticRegressionModelPage />}
           />
+        </Route>
+      </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-    </div>
+      <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
+      <Route path="/dataset" element={<Navigate to="/app/dataset" replace />} />
+      <Route path="/prediction" element={<Navigate to="/app/prediction" replace />} />
+      <Route
+        path="/prediction-history"
+        element={<Navigate to="/app/prediction-history" replace />}
+      />
+      <Route path="/models/knn" element={<Navigate to="/app/models/knn" replace />} />
+      <Route
+        path="/models/logistic-regression"
+        element={<Navigate to="/app/models/logistic-regression" replace />}
+      />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { getAuthHeaders } from "../auth";
 
 const initialFormData = {
   price: "",
@@ -66,6 +67,7 @@ const PredictionView = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...getAuthHeaders(),
         },
         body: JSON.stringify(payload),
       });
