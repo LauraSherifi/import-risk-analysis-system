@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import DatasetPage from "./pages/DatasetPage";
 import PredictionView from "./pages/PredictionView";
 import PredictionHistoryPage from "./pages/PredictionHistoryPage";
+import RiskMapPage from "./pages/RiskMapPage";
 import KNNModelPage from "./pages/KNNModelPage";
 import LogisticRegressionModelPage from "./pages/LogisticRegressionModelPage";
 import { completedModelPages } from "./config/modelPages";
@@ -28,6 +29,8 @@ function App() {
 
           <NavLink to="/prediction-history">Prediction History</NavLink>
 
+          <NavLink to="/risk-map">Risk Map</NavLink>
+
           <div className="nav-section-title">Completed Models</div>
 
           {completedModelPages.map((model) => (
@@ -44,6 +47,7 @@ function App() {
           <Route path="/dataset" element={<DatasetPage />} />
           <Route path="/prediction" element={<PredictionView />} />
           <Route path="/prediction-history" element={<PredictionHistoryPage />} />
+          <Route path="/risk-map" element={<RiskMapPage />} />
           <Route path="/models/knn" element={<KNNModelPage />} />
           <Route
             path="/models/logistic-regression"
