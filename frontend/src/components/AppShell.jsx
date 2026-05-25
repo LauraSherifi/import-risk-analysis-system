@@ -37,7 +37,6 @@ function AppShell() {
           <NavLink to="/app/dashboard">Dashboard</NavLink>
           <NavLink to="/app/dataset">Dataset</NavLink>
           <NavLink to="/app/prediction">Prediction</NavLink>
-          <NavLink to="/app/prediction-history">Prediction History</NavLink>
           <NavLink to="/app/risk-map">Risk Map</NavLink>
 
           <div className="nav-section-title">Completed Models</div>

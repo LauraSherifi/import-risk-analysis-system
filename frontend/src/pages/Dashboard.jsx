@@ -1,10 +1,27 @@
 import StatCard from "../components/StatCard";
+import ProgressBar from "../components/ProgressBar";
 
 const overviewCards = [
-  { label: "Total Records", value: "263,821", note: "Final cleaned dataset" },
-  { label: "Dataset Columns", value: "17", note: "After feature engineering" },
-  { label: "Missing Values", value: "0", note: "Validated final dataset" },
-  { label: "Duplicate Rows", value: "0", note: "No duplicates found" },
+  {
+    label: "Total Records",
+    value: "263,821",
+    note: "Final cleaned shipment records",
+  },
+  {
+    label: "Completed Models",
+    value: "2",
+    note: "KNN and Logistic Regression",
+  },
+  {
+    label: "High Risk Share",
+    value: "14.9%",
+    note: "39,407 high-risk records",
+  },
+  {
+    label: "Model-ready Features",
+    value: "17",
+    note: "After feature engineering",
+  },
 ];
 
 const riskData = [
@@ -12,10 +29,60 @@ const riskData = [
   { label: "HIGH RISK", value: 39407, percentage: 14.9 },
 ];
 
-const modelMetrics = [
-  { label: "Accuracy", value: 98.58 },
-  { label: "Macro F1", value: 97.18 },
-  { label: "Weighted F1", value: 98.57 },
+const completedModels = [
+  {
+    name: "KNN",
+    role: "Best completed classifier",
+    status: "Completed",
+    accuracy: 98.58,
+    f1: 97.18,
+    precision: 95.66,
+    recall: 94.75,
+    insight:
+      "Strongest current model with very high accuracy and balanced performance.",
+  },
+  {
+    name: "Logistic Regression",
+    role: "Interpretable benchmark model",
+    status: "Completed",
+    accuracy: 49.92,
+    f1: 22.88,
+    precision: 14.86,
+    recall: 49.75,
+    insight:
+      "Useful as a transparent baseline, but weaker than the KNN model.",
+  },
+];
+
+const featureImpact = [
+  { label: "Tax ratio", value: 92 },
+  { label: "Value per kg", value: 88 },
+  { label: "Density", value: 76 },
+  { label: "Volume", value: 68 },
+  { label: "Weight", value: 61 },
+];
+
+const roadmapItems = [
+  {
+    model: "KNN",
+    status: "Completed",
+    note: "Currently strongest completed classifier.",
+  },
+  {
+    model: "Logistic Regression",
+    status: "Completed",
+    note: "Benchmark model for interpretability.",
+  },
+  {
+    model: "Decision Tree",
+    status: "Upcoming",
+    note: "Planned for future model comparison.",
+  },
+  {
+    model: "Neural Network",
+    status: "Upcoming",
+    note: "To be shown once fully validated.",
+  },
 ];
 
 const sampleRows = [
@@ -68,8 +135,8 @@ function Dashboard() {
         <div>
           <h1>Shipment Risk Dashboard</h1>
           <p>
-            Overview of the cleaned shipment dataset, engineered features and
-            KNN model performance.
+            Executive overview of the cleaned shipment dataset, risk structure,
+            completed model performance and future model roadmap.
           </p>
         </div>
 
@@ -119,31 +186,153 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="panel">
+        <div className="panel insight-panel">
           <div className="panel-header">
             <div>
-              <h3>Best Completed Model Performance</h3>
-              <p>KNN currently has the strongest evaluation results among completed models.</p>
+              <h3>Key Model Insight</h3>
+              <p>Main interpretation from completed model results.</p>
             </div>
           </div>
 
-          <div className="metric-chart">
-            {modelMetrics.map((metric) => (
-              <div className="metric-row" key={metric.label}>
+          <div className="highlight-insight">
+            <span>Best Performing Model</span>
+            <strong>KNN</strong>
+            <p>
+              KNN currently outperforms Logistic Regression across the main
+              evaluation metrics. Logistic Regression remains useful as an
+              interpretable benchmark while additional models are prepared.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <h3>Completed Model Comparison</h3>
+            <p>
+              Comparison of the models that are currently completed and visible
+              in the system.
+            </p>
+          </div>
+        </div>
+
+        <div className="model-comparison-grid">
+          {completedModels.map((model) => (
+            <div className="model-card" key={model.name}>
+              <div className="model-card-header">
+                <div>
+                  <h4>{model.name}</h4>
+                  <p>{model.role}</p>
+                </div>
+
+                <span className="model-status-badge">{model.status}</span>
+              </div>
+
+              <div className="metric-chart">
+                <ProgressBar label="Accuracy" value={model.accuracy} />
+                <ProgressBar label="F1 Score" value={model.f1} />
+                <ProgressBar label="Precision" value={model.precision} />
+                <ProgressBar label="Recall" value={model.recall} />
+              </div>
+
+              <p className="model-insight">{model.insight}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="dashboard-grid">
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h3>Feature Impact Overview</h3>
+              <p>Visual overview of strongest feature groups used in analysis.</p>
+            </div>
+          </div>
+
+          <div className="feature-impact-list">
+            {featureImpact.map((feature) => (
+              <div className="metric-row" key={feature.label}>
                 <div className="metric-title">
-                  <span>{metric.label}</span>
-                  <strong>{metric.value}%</strong>
+                  <span>{feature.label}</span>
+                  <strong>{feature.value}%</strong>
                 </div>
 
                 <div className="bar-track">
                   <div
                     className="bar-fill model-score"
-                    style={{ width: `${metric.value}%` }}
+                    style={{ width: `${feature.value}%` }}
                   />
                 </div>
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h3>Data Quality Snapshot</h3>
+              <p>Final dataset readiness before model evaluation.</p>
+            </div>
+          </div>
+
+          <div className="quality-dashboard-grid">
+            <div>
+              <span>Missing Values</span>
+              <strong>0</strong>
+            </div>
+            <div>
+              <span>Duplicate Rows</span>
+              <strong>0</strong>
+            </div>
+            <div>
+              <span>Validation</span>
+              <strong>Passed</strong>
+            </div>
+            <div>
+              <span>Feature Set</span>
+              <strong>Ready</strong>
+            </div>
+          </div>
+
+          <div className="mini-pipeline">
+            <span>Raw Data</span>
+            <i />
+            <span>Cleaning</span>
+            <i />
+            <span>Features</span>
+            <i />
+            <span>Validated</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <h3>Model Roadmap</h3>
+            <p>
+              Completed models are visible in the sidebar, while upcoming models
+              remain hidden until validation is finished.
+            </p>
+          </div>
+        </div>
+
+        <div className="roadmap-grid">
+          {roadmapItems.map((item) => (
+            <div
+              className={`roadmap-card ${
+                item.status === "Completed" ? "roadmap-ready" : "roadmap-next"
+              }`}
+              key={item.model}
+            >
+              <span>{item.status}</span>
+              <strong>{item.model}</strong>
+              <p>{item.note}</p>
+            </div>
+          ))}
         </div>
       </section>
 
