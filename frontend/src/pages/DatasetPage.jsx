@@ -1,3 +1,30 @@
+const datasetCircleStats = [
+  {
+    label: "Completeness",
+    value: 100,
+    detail: "No missing values",
+    className: "circle-model",
+  },
+  {
+    label: "Duplicate Free",
+    value: 100,
+    detail: "0 duplicate rows",
+    className: "circle-low",
+  },
+  {
+    label: "Feature Ready",
+    value: 100,
+    detail: "13 model-ready columns",
+    className: "circle-benchmark",
+  },
+  {
+    label: "High Risk",
+    value: 14.9,
+    detail: "39,407 high-risk records",
+    className: "circle-high",
+  },
+];
+
 const cleaningSteps = [
   {
     title: "Raw Import Data",
@@ -17,14 +44,27 @@ const cleaningSteps = [
   },
 ];
 
+const cleaningFunnel = [
+  { label: "Raw records", value: "263,821", width: "100%" },
+  { label: "After missing-value check", value: "263,821", width: "100%" },
+  { label: "After duplicate check", value: "263,821", width: "100%" },
+  { label: "Model-ready records", value: "263,821", width: "100%" },
+];
+
 const featureGroups = [
-  "Price features",
-  "Weight features",
-  "Dimension features",
-  "Volume features",
-  "Density features",
-  "Tax features",
-  "Risk labels",
+  { label: "Tax features", value: 92 },
+  { label: "Value features", value: 88 },
+  { label: "Dimension features", value: 82 },
+  { label: "Volume features", value: 74 },
+  { label: "Weight features", value: 68 },
+  { label: "Density features", value: 61 },
+];
+
+const validationMatrix = [
+  { check: "Missing values", result: "Passed", status: "success" },
+  { check: "Duplicate rows", result: "Passed", status: "success" },
+  { check: "Tax ratio fields", result: "Checked", status: "info" },
+  { check: "Model input format", result: "Ready", status: "success" },
 ];
 
 function DatasetPage() {
@@ -34,8 +74,8 @@ function DatasetPage() {
         <div>
           <h1>Dataset Overview</h1>
           <p>
-            Summary of the cleaned, validated and feature-engineered shipment
-            dataset used for import risk analysis.
+            Visual summary of the cleaned, validated and feature-engineered
+            shipment dataset used for import risk analysis.
           </p>
         </div>
 
@@ -51,7 +91,7 @@ function DatasetPage() {
 
         <div className="card">
           <span>Dataset Columns</span>
-          <strong>17</strong>
+          <strong>11</strong>
           <p>After feature engineering</p>
         </div>
 
@@ -68,7 +108,37 @@ function DatasetPage() {
         </div>
       </section>
 
-      <section className="dashboard-grid">
+      <section className="panel dashboard-section">
+        <div className="panel-header">
+          <div>
+            <h3>Dataset Quality Snapshot</h3>
+            <p>
+              Circular view of dataset completeness, duplicate status, feature
+              readiness and class balance.
+            </p>
+          </div>
+        </div>
+
+        <div className="circle-chart-grid">
+          {datasetCircleStats.map((item) => (
+            <div className="circle-chart-card" key={item.label}>
+              <div
+                className={`circle-chart ${item.className}`}
+                style={{ "--value": `${item.value}%` }}
+              >
+                <div className="circle-chart-inner">
+                  <strong>{item.value}%</strong>
+                  <span>{item.label}</span>
+                </div>
+              </div>
+
+              <p>{item.detail}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="dashboard-grid dataset-grid">
         <div className="panel">
           <div className="panel-header">
             <div>
@@ -90,55 +160,80 @@ function DatasetPage() {
           </div>
         </div>
 
+        <div className="panel compact-panel">
+  <div className="panel-header">
+    <div>
+      <h3>Cleaning Retention</h3>
+      <p>Record retention after each data preparation step.</p>
+    </div>
+  </div>
+
+  <div className="retention-summary">
+    {cleaningFunnel.map((item) => (
+      <div className="retention-card" key={item.label}>
+        <span>{item.label}</span>
+        <strong>{item.value}</strong>
+        <small>{item.retention}</small>
+
+        <div className="retention-bar">
+          <div style={{ width: item.width }} />
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+      </section>
+
+      <section className="dashboard-grid">
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h3>Data Quality Checks</h3>
-              <p>Validation indicators for the final dataset.</p>
+              <h3>Feature Engineering Strength</h3>
+              <p>
+                Visual grouping of engineered features used in the analysis.
+              </p>
             </div>
           </div>
 
-          <div className="quality-list">
-            <div className="quality-row">
-              <span>Missing value treatment</span>
-              <strong>Passed</strong>
-            </div>
+          <div className="feature-impact-list">
+            {featureGroups.map((feature) => (
+              <div className="metric-row" key={feature.label}>
+                <div className="metric-title">
+                  <span>{feature.label}</span>
+                  <strong>{feature.value}%</strong>
+                </div>
 
-            <div className="quality-row">
-              <span>Duplicate row check</span>
-              <strong>Passed</strong>
-            </div>
-
-            <div className="quality-row">
-              <span>Feature consistency</span>
-              <strong>Passed</strong>
-            </div>
-
-            <div className="quality-row">
-              <span>Model-ready structure</span>
-              <strong>Passed</strong>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <h3>Feature Engineering Overview</h3>
-            <p>
-              Engineered variables expand the raw shipment data into stronger
-              analytical inputs for model training.
-            </p>
+                <div className="bar-track">
+                  <div
+                    className="bar-fill model-score"
+                    style={{ width: `${feature.value}%` }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="feature-chip-grid">
-          {featureGroups.map((feature) => (
-            <div className="feature-chip" key={feature}>
-              {feature}
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h3>Validation Matrix</h3>
+              <p>Final quality checks before model training and evaluation.</p>
             </div>
-          ))}
+          </div>
+
+        <div className="validation-scorecard">
+  {validationMatrix.map((item) => (
+    <div className={`validation-score-row ${item.status}`} key={item.check}>
+      <div>
+        <span>{item.check}</span>
+        <p>Dataset check completed successfully.</p>
+      </div>
+
+      <strong>{item.result}</strong>
+    </div>
+  ))}
+</div>
         </div>
       </section>
 
@@ -188,38 +283,34 @@ function DatasetPage() {
             </div>
           </div>
 
-          <div className="metric-chart">
-            <div className="metric-row">
-              <div className="metric-title">
-                <span>Data completeness</span>
-                <strong>100%</strong>
-              </div>
+          <div className="mini-pipeline dataset-mini-pipeline">
+            <span>Raw Data</span>
+            <i />
+            <span>Cleaning</span>
+            <i />
+            <span>Features</span>
+            <i />
+            <span>Validated</span>
+            <i />
+            <span>Model-ready</span>
+          </div>
 
-              <div className="bar-track">
-                <div className="bar-fill model-score" style={{ width: "100%" }} />
-              </div>
+          <div className="quality-dashboard-grid dataset-readiness-grid">
+            <div>
+              <span>Completeness</span>
+              <strong>100%</strong>
             </div>
-
-            <div className="metric-row">
-              <div className="metric-title">
-                <span>Duplicate removal</span>
-                <strong>100%</strong>
-              </div>
-
-              <div className="bar-track">
-                <div className="bar-fill model-score" style={{ width: "100%" }} />
-              </div>
+            <div>
+              <span>Duplicates</span>
+              <strong>0</strong>
             </div>
-
-            <div className="metric-row">
-              <div className="metric-title">
-                <span>Feature engineering</span>
-                <strong>Ready</strong>
-              </div>
-
-              <div className="bar-track">
-                <div className="bar-fill model-score" style={{ width: "100%" }} />
-              </div>
+            <div>
+              <span>Features</span>
+              <strong>13</strong>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong>Ready</strong>
             </div>
           </div>
         </div>

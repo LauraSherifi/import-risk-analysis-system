@@ -170,13 +170,14 @@ function buildPredictionPayload(body) {
   };
 }
 
-function createHistoryEntry({ risk, confidence, probabilities, input }) {
+function createHistoryEntry({ risk, confidence, probabilities, input, metadata }) {
   return {
     id: nextHistoryId++,
     risk,
     confidence,
     probabilities,
     input,
+    metadata: metadata ?? null,
     created_at: new Date().toISOString(),
   };
 }
@@ -285,6 +286,26 @@ app.post("/predict", requireAuth, async (req, res) => {
   }
 
   try {
+    const metadata = {
+      product_name:
+        typeof req.body?.product_name === "string"
+          ? req.body.product_name.trim()
+          : "",
+      destination_port:
+        typeof req.body?.destination_port === "string"
+          ? req.body.destination_port.trim()
+          : "",
+      price: Number.isFinite(Number(req.body?.price))
+        ? Number(req.body.price)
+        : null,
+      weight_kg: Number.isFinite(Number(req.body?.weight_kg))
+        ? Number(req.body.weight_kg)
+        : null,
+      volume_m3: Number.isFinite(Number(req.body?.volume_m3))
+        ? Number(req.body.volume_m3)
+        : null,
+    };
+
     const response = await fetch(`${ML_SERVICE_URL}/predict`, {
       method: "POST",
       headers: {
@@ -306,6 +327,7 @@ app.post("/predict", requireAuth, async (req, res) => {
       confidence: data.confidence ?? null,
       probabilities: data.probabilities ?? null,
       input: predictionPayload.payload,
+      metadata,
     });
     addPredictionToHistory(historyEntry);
 
@@ -314,6 +336,7 @@ app.post("/predict", requireAuth, async (req, res) => {
       confidence: data.confidence ?? null,
       probabilities: data.probabilities ?? null,
       input: predictionPayload.payload,
+      metadata,
       history_entry: historyEntry,
     });
   } catch (error) {
