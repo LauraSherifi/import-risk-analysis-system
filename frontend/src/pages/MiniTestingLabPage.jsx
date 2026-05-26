@@ -6,6 +6,8 @@ const shipmentSignals = [
   ...predictionLabDataset.comparisonSamples,
 ];
 
+const datasetGameSamples = predictionLabDataset.labSamples;
+
 const algorithmMetrics = [
   {
     id: "accuracy",
@@ -90,20 +92,20 @@ const gamePlaceholders = [
 
 const riskPuzzleFeatures = [
   {
-    id: "product-category",
-    label: "Product Category",
-    shortLabel: "Category",
+    id: "destination-port",
+    label: "Destination Port",
+    shortLabel: "Port",
     importance: 1,
     explanation:
-      "Product category can add context, but in this project it is much weaker than the tax behavior itself.",
+      "Destination port adds route context from the real dataset, but it is still weaker than the core numeric declaration signals.",
   },
   {
-    id: "shipping-route",
-    label: "Shipping Route",
-    shortLabel: "Route",
+    id: "declared-tax",
+    label: "Declared Tax",
+    shortLabel: "Tax",
     importance: 2,
     explanation:
-      "Shipping route and destination patterns can support the story, but they are not the leading signal on this page.",
+      "Declared tax matters on its own, but the model reads it most strongly when it is compared against invoice value through tax_ratio.",
   },
   {
     id: "shipment-weight",
@@ -111,7 +113,7 @@ const riskPuzzleFeatures = [
     shortLabel: "Weight",
     importance: 3,
     explanation:
-      "Weight helps compare the shipment with dataset averages, especially when it looks unusual for the declared value.",
+      "Weight helps compare the shipment with dataset averages and can support suspicion when the shipment looks unusual for its declared value.",
   },
   {
     id: "invoice-value",
@@ -119,7 +121,7 @@ const riskPuzzleFeatures = [
     shortLabel: "Value",
     importance: 4,
     explanation:
-      "Invoice value matters because it changes the economic context of the declaration and influences how suspicious the tax looks.",
+      "Invoice value sets the economic context of the shipment and heavily changes how suspicious the declared tax appears.",
   },
   {
     id: "tax-ratio",
@@ -163,113 +165,126 @@ const shipmentSpotDifficulties = {
   hard: { label: "Hard", time: 18, cards: 4 },
 };
 
-const shipmentSpotPool = [
-  {
-    id: "shipment-a",
-    invoiceValue: 52,
-    taxRatio: 0.008,
-    shippingRoute: "Shenzhen -> Durres",
-    shipmentWeight: 18,
-    productCategory: "Consumer Electronics",
-    originPort: "Port of Shanghai (China)",
-    destinationPort: "Port of Singapore (Singapore)",
-    fraudProbability: 94,
-    risk: "HIGH RISK",
-    strongestFactors: ["Very low tax ratio", "Dense trade route", "High value for tax declared"],
-    importance: { taxRatio: 96, route: 74, weight: 38, category: 34, invoice: 69 },
-    explanation:
-      "Very low tax ratio compared to invoice value sharply increased fraud suspicion, and the high-value electronics lane added more pressure.",
-  },
-  {
-    id: "shipment-b",
-    invoiceValue: 1240,
-    taxRatio: 0.176,
-    shippingRoute: "Busan -> Vlore",
-    shipmentWeight: 42,
-    productCategory: "Auto Parts",
-    originPort: "Port of Busan (South Korea)",
-    destinationPort: "Port of Tokyo (Japan)",
-    fraudProbability: 16,
-    risk: "LOW RISK",
-    strongestFactors: ["Healthy tax ratio", "Stable route", "Balanced invoice profile"],
-    importance: { taxRatio: 18, route: 24, weight: 33, category: 22, invoice: 28 },
-    explanation:
-      "The stronger tax ratio keeps this shipment aligned with low-risk behavior, so the model does not see a strong fraud pattern.",
-  },
-  {
-    id: "shipment-c",
-    invoiceValue: 410,
-    taxRatio: 0.061,
-    shippingRoute: "Tianjin -> Durres",
-    shipmentWeight: 9,
-    productCategory: "Home Goods",
-    originPort: "Port of Tianjin (China)",
-    destinationPort: "Port of Shanghai (China)",
-    fraudProbability: 81,
-    risk: "HIGH RISK",
-    strongestFactors: ["Low tax ratio", "Underdeclared value signal", "Risky lane pattern"],
-    importance: { taxRatio: 88, route: 67, weight: 29, category: 25, invoice: 56 },
-    explanation:
-      "The tax ratio falls below the lower dataset band, which is a major signal of possible under-declaration in this project.",
-  },
-  {
-    id: "shipment-d",
-    invoiceValue: 76,
-    taxRatio: 0.151,
-    shippingRoute: "Bari -> Vlore",
-    shipmentWeight: 6,
-    productCategory: "Kitchenware",
-    originPort: "Port of Singapore (Singapore)",
-    destinationPort: "Port of Tokyo (Japan)",
-    fraudProbability: 22,
-    risk: "LOW RISK",
-    strongestFactors: ["Near-upper tax band", "Light shipment profile", "Routine movement"],
-    importance: { taxRatio: 21, route: 18, weight: 19, category: 16, invoice: 22 },
-    explanation:
-      "Nothing here pushes the model strongly toward fraud, and the tax ratio remains close to the stronger low-risk range.",
-  },
-  {
-    id: "shipment-e",
-    invoiceValue: 2180,
-    taxRatio: 0.034,
-    shippingRoute: "Singapore -> Durres",
-    shipmentWeight: 31,
-    productCategory: "Luxury Accessories",
-    originPort: "Port of Singapore (Singapore)",
-    destinationPort: "Port of Tianjin (China)",
-    fraudProbability: 97,
-    risk: "HIGH RISK",
-    strongestFactors: ["Extremely low tax ratio", "Luxury goods profile", "High invoice mismatch"],
-    importance: { taxRatio: 99, route: 72, weight: 35, category: 58, invoice: 77 },
-    explanation:
-      "The declared tax is far too low for the invoice value, and that gap is exactly the type of signal the model treats as highly suspicious.",
-  },
-  {
-    id: "shipment-f",
-    invoiceValue: 305,
-    taxRatio: 0.132,
-    shippingRoute: "Tokyo -> Durres",
-    shipmentWeight: 14,
-    productCategory: "Tools",
-    originPort: "Port of Tokyo (Japan)",
-    destinationPort: "Port of Busan (South Korea)",
-    fraudProbability: 41,
-    risk: "MEDIUM RISK",
-    strongestFactors: ["Borderline tax ratio", "Moderate value sensitivity", "Some route pressure"],
-    importance: { taxRatio: 52, route: 41, weight: 24, category: 22, invoice: 38 },
-    explanation:
-      "This shipment sits in the middle band. It is not obviously fraudulent, but the tax behavior is not strong enough to feel fully safe either.",
-  },
-];
+const getPortActivityWeight = (destinationPort) => {
+  const topPort = predictionLabDataset.topPorts.find(
+    (port) => port.name === destinationPort
+  );
+  if (!topPort) {
+    return 18;
+  }
+
+  return Math.round(
+    (topPort.shipmentCount / predictionLabDataset.topPorts[0].shipmentCount) * 42
+  );
+};
+
+const buildDatasetAssessment = (sample) => {
+  const { low, median, high } = predictionLabDataset.taxRatioQuartiles;
+  const ratio = Number(sample.taxRatio);
+  const price = Number(sample.priceUsd);
+  const weight = Number(sample.weightKg);
+  const taxUsd = Number(sample.taxUsd);
+
+  let fraudProbability = 24;
+  if (ratio <= low) {
+    fraudProbability = 82 + Math.min(15, Math.round(((low - ratio) / low) * 18));
+  } else if (ratio < median) {
+    fraudProbability =
+      46 + Math.round(((median - ratio) / (median - low || 1)) * 18);
+  } else if (ratio < high) {
+    fraudProbability =
+      26 + Math.round(((high - ratio) / (high - median || 1)) * 14);
+  } else {
+    fraudProbability = Math.max(
+      8,
+      22 - Math.round(((ratio - high) / high) * 12)
+    );
+  }
+
+  if (price >= predictionLabDataset.averagePriceUsd) {
+    fraudProbability += 6;
+  }
+  if (weight >= predictionLabDataset.averageWeightKg) {
+    fraudProbability += 4;
+  }
+  if (taxUsd >= predictionLabDataset.averageTaxUsd && ratio > low) {
+    fraudProbability -= 4;
+  }
+
+  fraudProbability = Math.max(6, Math.min(97, fraudProbability));
+
+  const importance = {
+    "Tax Ratio": Math.max(22, Math.min(99, fraudProbability + 4)),
+    "Invoice Value": Math.max(
+      16,
+      Math.min(82, Math.round((price / predictionLabDataset.averagePriceUsd) * 42 + 28))
+    ),
+    "Shipment Weight": Math.max(
+      14,
+      Math.min(76, Math.round((weight / predictionLabDataset.averageWeightKg) * 24 + 24))
+    ),
+    "Declared Tax": Math.max(
+      12,
+      Math.min(74, Math.round((taxUsd / predictionLabDataset.averageTaxUsd) * 28 + 20))
+    ),
+    "Destination Port": getPortActivityWeight(sample.destinationPort),
+  };
+
+  const strongestFactors = [];
+  if (ratio <= low) {
+    strongestFactors.push("Very low tax ratio");
+  } else if (ratio < median) {
+    strongestFactors.push("Below-median tax ratio");
+  } else {
+    strongestFactors.push("Stronger declared tax ratio");
+  }
+
+  strongestFactors.push(
+    price >= predictionLabDataset.averagePriceUsd
+      ? "Invoice value above dataset average"
+      : "Invoice value below dataset average"
+  );
+  strongestFactors.push(
+    weight >= predictionLabDataset.averageWeightKg
+      ? "Heavy shipment profile"
+      : "Light shipment profile"
+  );
+
+  let explanation =
+    "This shipment sits in the safer part of the dataset because the declared tax remains consistent with the invoice value.";
+  if (ratio <= low) {
+    explanation =
+      "Very low tax ratio compared to invoice value increased fraud suspicion, which is the strongest signal visible in the project dataset.";
+  } else if (ratio < median) {
+    explanation =
+      "The shipment falls below the dataset median tax ratio, so it stays in a watch zone where under-declaration becomes more plausible.";
+  }
+
+  const aiPrediction = fraudProbability >= 55 ? "HIGH RISK" : "LOW RISK";
+
+  return {
+    fraudProbability,
+    strongestFactors,
+    importance,
+    explanation,
+    aiPrediction,
+    correctAnswer: sample.risk,
+  };
+};
 
 const buildShipmentSpotRound = (difficulty) => {
   const cardCount = shipmentSpotDifficulties[difficulty].cards;
-  const shuffled = [...shipmentSpotPool].sort(() => Math.random() - 0.5);
+  const shuffled = [...datasetGameSamples].sort(() => Math.random() - 0.5);
   let selected = shuffled.slice(0, cardCount);
 
   if (!selected.some((item) => item.risk === "HIGH RISK")) {
-    selected[0] = shipmentSpotPool.find((item) => item.risk === "HIGH RISK");
+    selected[0] = datasetGameSamples.find((item) => item.risk === "HIGH RISK");
   }
+
+  selected = selected.map((sample) => ({
+    ...sample,
+    ...buildDatasetAssessment(sample),
+  }));
 
   const highestRisk = [...selected].sort(
     (left, right) => right.fraudProbability - left.fraudProbability
@@ -287,119 +302,25 @@ const beatModelDifficulties = {
   hard: { label: "Hard" },
 };
 
-const beatModelPool = [
-  {
-    id: "beat-1",
-    invoiceValue: 1380,
-    taxRatio: 0.031,
-    shipmentWeight: 22,
-    productCategory: "Luxury Accessories",
-    shippingRoute: "Singapore -> Durres",
-    originPort: "Port of Singapore (Singapore)",
-    destinationPort: "Port of Tianjin (China)",
-    aiPrediction: "HIGH RISK",
-    correctAnswer: "HIGH RISK",
-    fraudProbability: 96,
-    strongestFactors: ["Very low tax ratio", "High invoice mismatch", "Risky commercial lane"],
-    importance: { taxRatio: 98, route: 71, weight: 34, category: 56, invoice: 79 },
-    explanation:
-      "Low tax ratio and a high-value commercial route increased the fraud probability sharply.",
-  },
-  {
-    id: "beat-2",
-    invoiceValue: 215,
-    taxRatio: 0.176,
-    shipmentWeight: 11,
-    productCategory: "Kitchenware",
-    shippingRoute: "Bari -> Vlore",
-    originPort: "Port of Tokyo (Japan)",
-    destinationPort: "Port of Busan (South Korea)",
-    aiPrediction: "LOW RISK",
-    correctAnswer: "LOW RISK",
-    fraudProbability: 14,
-    strongestFactors: ["Strong tax ratio", "Routine movement", "Balanced weight-value profile"],
-    importance: { taxRatio: 20, route: 17, weight: 23, category: 16, invoice: 25 },
-    explanation:
-      "The stronger tax ratio keeps this shipment aligned with low-risk patterns, so the AI stays calm.",
-  },
-  {
-    id: "beat-3",
-    invoiceValue: 640,
-    taxRatio: 0.067,
-    shipmentWeight: 7,
-    productCategory: "Electronics",
-    shippingRoute: "Shanghai -> Durres",
-    originPort: "Port of Shanghai (China)",
-    destinationPort: "Port of Singapore (Singapore)",
-    aiPrediction: "HIGH RISK",
-    correctAnswer: "HIGH RISK",
-    fraudProbability: 83,
-    strongestFactors: ["Low tax ratio", "High-value electronics", "Busy trade route"],
-    importance: { taxRatio: 87, route: 64, weight: 26, category: 49, invoice: 62 },
-    explanation:
-      "The declared tax is too low relative to the invoice value, and that creates a strong high-risk signal.",
-  },
-  {
-    id: "beat-4",
-    invoiceValue: 410,
-    taxRatio: 0.146,
-    shipmentWeight: 19,
-    productCategory: "Tools",
-    shippingRoute: "Busan -> Durres",
-    originPort: "Port of Busan (South Korea)",
-    destinationPort: "Port of Tokyo (Japan)",
-    aiPrediction: "LOW RISK",
-    correctAnswer: "LOW RISK",
-    fraudProbability: 27,
-    strongestFactors: ["Healthy tax band", "Stable route", "Typical shipment profile"],
-    importance: { taxRatio: 29, route: 24, weight: 31, category: 18, invoice: 33 },
-    explanation:
-      "This shipment sits in a healthy tax range and does not trigger the stronger fraud indicators.",
-  },
-  {
-    id: "beat-5",
-    invoiceValue: 990,
-    taxRatio: 0.089,
-    shipmentWeight: 17,
-    productCategory: "Consumer Electronics",
-    shippingRoute: "Tianjin -> Durres",
-    originPort: "Port of Tianjin (China)",
-    destinationPort: "Port of Shanghai (China)",
-    aiPrediction: "LOW RISK",
-    correctAnswer: "HIGH RISK",
-    fraudProbability: 58,
-    strongestFactors: ["Borderline tax ratio", "Value pressure", "Route support signal"],
-    importance: { taxRatio: 74, route: 48, weight: 21, category: 36, invoice: 55 },
-    explanation:
-      "The shipment sits close to the lower band. It is a trickier case where the AI can be less decisive than a careful human reader.",
-  },
-  {
-    id: "beat-6",
-    invoiceValue: 118,
-    taxRatio: 0.121,
-    shipmentWeight: 4,
-    productCategory: "Accessories",
-    shippingRoute: "Tokyo -> Durres",
-    originPort: "Port of Singapore (Singapore)",
-    destinationPort: "Port of Tokyo (Japan)",
-    aiPrediction: "HIGH RISK",
-    correctAnswer: "LOW RISK",
-    fraudProbability: 46,
-    strongestFactors: ["Borderline tax ratio", "Low-value ambiguity", "Mild route pressure"],
-    importance: { taxRatio: 51, route: 28, weight: 19, category: 17, invoice: 26 },
-    explanation:
-      "This is a borderline shipment where the AI leans cautious, but the final pattern is still closer to low-risk behavior.",
-  },
-];
-
 const buildBeatModelRound = (difficulty) => {
+  const { low, high } = predictionLabDataset.taxRatioQuartiles;
   const pools = {
-    easy: beatModelPool.slice(0, 4),
-    medium: beatModelPool.slice(0, 5),
-    hard: beatModelPool,
+    easy: datasetGameSamples.filter(
+      (sample) => sample.taxRatio <= low * 0.95 || sample.taxRatio >= high
+    ),
+    medium: datasetGameSamples,
+    hard: datasetGameSamples.filter(
+      (sample) => sample.taxRatio > low * 0.9 && sample.taxRatio < high
+    ),
   };
-  const candidates = pools[difficulty] || beatModelPool;
-  return candidates[Math.floor(Math.random() * candidates.length)];
+  const candidates = pools[difficulty]?.length
+    ? pools[difficulty]
+    : datasetGameSamples;
+  const sample = candidates[Math.floor(Math.random() * candidates.length)];
+  return {
+    ...sample,
+    ...buildDatasetAssessment(sample),
+  };
 };
 
 const formatCurrency = (value) =>
@@ -849,8 +770,8 @@ function MiniTestingLabPage() {
         >
           <span className="lab-preview-chip">Tax Ratio</span>
           <span className="lab-preview-chip">Invoice Value</span>
-          <span className="lab-preview-chip">Product Category</span>
-          <span className="lab-preview-chip">Route</span>
+          <span className="lab-preview-chip">Declared Tax</span>
+          <span className="lab-preview-chip">Port</span>
           <span className="lab-preview-chip">Weight</span>
         </div>
       );
@@ -1645,8 +1566,8 @@ function MiniTestingLabPage() {
                     disabled={shipmentSpotRevealed}
                   >
                     <div className="shipment-spot-card-header">
-                      <span>{shipment.productCategory}</span>
-                      <strong>{formatCurrency(shipment.invoiceValue)}</strong>
+                      <span>{shipment.productName}</span>
+                      <strong>{formatCurrency(shipment.priceUsd)}</strong>
                     </div>
 
                     <div className="shipment-spot-card-grid">
@@ -1656,18 +1577,19 @@ function MiniTestingLabPage() {
                       </div>
                       <div>
                         <span>Weight</span>
-                        <strong>{shipment.shipmentWeight} kg</strong>
+                        <strong>{shipment.weightKg} kg</strong>
                       </div>
                       <div>
-                        <span>Route</span>
-                        <strong>{shipment.shippingRoute}</strong>
+                        <span>Declared Tax</span>
+                        <strong>{formatCurrency(shipment.taxUsd)}</strong>
                       </div>
                       <div>
-                        <span>Ports</span>
-                        <strong>
-                          {shipment.originPort.split(" ")[2]} /{" "}
-                          {shipment.destinationPort.split(" ")[2]}
-                        </strong>
+                        <span>Volume</span>
+                        <strong>{shipment.volumeM3.toFixed(4)} m³</strong>
+                      </div>
+                      <div>
+                        <span>Destination Port</span>
+                        <strong>{shipment.destinationPort}</strong>
                       </div>
                     </div>
 
@@ -1823,7 +1745,7 @@ function MiniTestingLabPage() {
                   <div className="beat-model-profile-grid">
                     <div>
                       <span>Invoice Value</span>
-                      <strong>{formatCurrency(beatModelRound.invoiceValue)}</strong>
+                      <strong>{formatCurrency(beatModelRound.priceUsd)}</strong>
                     </div>
                     <div>
                       <span>Tax Ratio</span>
@@ -1831,21 +1753,19 @@ function MiniTestingLabPage() {
                     </div>
                     <div>
                       <span>Shipment Weight</span>
-                      <strong>{beatModelRound.shipmentWeight} kg</strong>
+                      <strong>{beatModelRound.weightKg} kg</strong>
                     </div>
                     <div>
-                      <span>Product Category</span>
-                      <strong>{beatModelRound.productCategory}</strong>
+                      <span>Declared Tax</span>
+                      <strong>{formatCurrency(beatModelRound.taxUsd)}</strong>
                     </div>
                     <div>
-                      <span>Shipping Route</span>
-                      <strong>{beatModelRound.shippingRoute}</strong>
+                      <span>Volume</span>
+                      <strong>{beatModelRound.volumeM3.toFixed(4)} m³</strong>
                     </div>
                     <div>
-                      <span>Ports</span>
-                      <strong>
-                        {beatModelRound.originPort} to {beatModelRound.destinationPort}
-                      </strong>
+                      <span>Destination Port</span>
+                      <strong>{beatModelRound.destinationPort}</strong>
                     </div>
                   </div>
                 </div>

@@ -170,7 +170,7 @@ const sampleRows = [
 
 function Dashboard() {
   return (
-    <>
+    <div className="dashboard-page">
       <header className="page-header">
         <div>
           <h1>Shipment Risk Dashboard</h1>
@@ -513,7 +513,7 @@ function Dashboard() {
           </table>
         </div>
       </section>
-    </>
+    </div>
   );
 }
 

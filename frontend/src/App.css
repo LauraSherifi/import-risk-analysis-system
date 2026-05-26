@@ -293,11 +293,16 @@ input {
 
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .sidebar {
   width: 240px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
   background: linear-gradient(180deg, #0d416f, #082b49);
   color: white;
   padding: 24px;
@@ -452,7 +457,9 @@ nav a:hover {
 
 .main {
   flex: 1;
+  height: 100vh;
   padding: 30px;
+  overflow-y: auto;
   overflow-x: hidden;
 }
 
@@ -519,6 +526,26 @@ nav a:hover {
   margin-top: 8px;
   color: #64748b;
   max-width: 720px;
+}
+
+.dashboard-page,
+.dataset-page {
+  display: grid;
+  gap: 34px;
+}
+
+.dashboard-page > section,
+.dataset-page > section {
+  margin: 0;
+}
+
+.dashboard-page .cards,
+.dataset-page .cards,
+.dashboard-page .dashboard-grid,
+.dataset-page .dashboard-grid,
+.dashboard-page .dashboard-section,
+.dataset-page .dashboard-section {
+  margin-bottom: 0;
 }
 
 .status-pill {
@@ -926,15 +953,25 @@ td {
   }
 
   .app-shell {
+    height: auto;
     flex-direction: column;
+    overflow: visible;
   }
 
   .sidebar {
     width: 100%;
+    height: auto;
+    position: static;
+    overflow: visible;
   }
 
   .page-header {
     flex-direction: column;
+  }
+
+  .dashboard-page,
+  .dataset-page {
+    gap: 24px;
   }
 
   .cards {
