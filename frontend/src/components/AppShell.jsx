@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { completedModelPages } from "../config/modelPages";
 import brandLogo from "../assets/brand-logo.png";
 import { useAuth } from "./AuthProvider";
@@ -7,6 +7,7 @@ import { useAuth } from "./AuthProvider";
 function AppShell() {
   const { session, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const handleLogout = () => {
@@ -37,6 +38,7 @@ function AppShell() {
           <NavLink to="/app/dashboard">Dashboard</NavLink>
           <NavLink to="/app/dataset">Dataset</NavLink>
           <NavLink to="/app/prediction">Prediction</NavLink>
+          <NavLink to="/app/testing-lab">Mini Testing Lab</NavLink>
           <NavLink to="/app/risk-map">Risk Map</NavLink>
 
           <div className="nav-section-title">Completed Models</div>
@@ -58,7 +60,9 @@ function AppShell() {
       </aside>
 
       <main className="main">
-        <Outlet />
+        <div key={location.pathname} className="page-transition-shell">
+          <Outlet />
+        </div>
       </main>
 
       {isLogoutModalOpen && (

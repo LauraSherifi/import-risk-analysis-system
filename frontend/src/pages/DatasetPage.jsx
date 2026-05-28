@@ -69,7 +69,7 @@ const validationMatrix = [
 
 function DatasetPage() {
   return (
-    <>
+    <div className="dataset-page">
       <header className="page-header">
         <div>
           <h1>Dataset Overview</h1>
@@ -315,7 +315,7 @@ function DatasetPage() {
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }
 
