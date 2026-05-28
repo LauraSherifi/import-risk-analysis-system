@@ -6,27 +6,31 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 8002,
-    proxy: {
-      '/auth': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-      '/predict': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-      '/prediction-history': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-      '/health': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-      '/ml-health': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-    },
+proxy: {
+  '/api': {
+    target: 'http://127.0.0.1:8000',
+    changeOrigin: true,
+  },
+  '/auth': {
+    target: 'http://127.0.0.1:8000',
+    changeOrigin: true,
+  },
+  '/predict': {
+    target: 'http://127.0.0.1:8000',
+    changeOrigin: true,
+  },
+  '/prediction-history': {
+    target: 'http://127.0.0.1:8000',
+    changeOrigin: true,
+  },
+  '/health': {
+    target: 'http://127.0.0.1:8000',
+    changeOrigin: true,
+  },
+  '/ml-health': {
+    target: 'http://127.0.0.1:8000',
+    changeOrigin: true,
+  },
+},
   },
 })
