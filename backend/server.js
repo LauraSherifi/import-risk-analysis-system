@@ -6,6 +6,8 @@ const {
   buildSampleRows,
   buildKnnModelData,
   buildLogisticRegressionData,
+  buildModelComparisonMetrics,
+  buildPredictionLabContext,
   buildDebugPaths,
   loadDataset,
 } = require("./dataService");
@@ -218,6 +220,67 @@ function buildHistorySummary() {
   return summary;
 }
 
+async function scoreSampleWithMl(sample) {
+  try {
+    const response = await fetch(`${ML_SERVICE_URL}/predict`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        tax: Number(sample.taxUsd ?? 0),
+        tax_ratio: Number(sample.taxRatio ?? 0),
+      }),
+    });
+
+    if (!response.ok) {
+      return {
+        aiPrediction: null,
+        confidence: null,
+        probabilities: null,
+      };
+    }
+
+    const data = await response.json();
+
+    return {
+      aiPrediction: data.prediction ?? null,
+      confidence:
+        data.confidence == null ? null : Number(Number(data.confidence).toFixed(4)),
+      probabilities: data.probabilities ?? null,
+    };
+  } catch {
+    return {
+      aiPrediction: null,
+      confidence: null,
+      probabilities: null,
+    };
+  }
+}
+
+async function attachLiveModelSignals(sampleGroups) {
+  const allSamples = Object.values(sampleGroups).flat();
+  const uniqueSamples = [...new Map(allSamples.map((sample) => [sample.id, sample])).values()];
+  const scoredEntries = await Promise.all(
+    uniqueSamples.map(async (sample) => [sample.id, await scoreSampleWithMl(sample)])
+  );
+  const scoreById = new Map(scoredEntries);
+
+  return Object.fromEntries(
+    Object.entries(sampleGroups).map(([groupName, samples]) => [
+      groupName,
+      samples.map((sample) => ({
+        ...sample,
+        ...(scoreById.get(sample.id) || {
+          aiPrediction: null,
+          confidence: null,
+          probabilities: null,
+        }),
+      })),
+    ])
+  );
+}
+
 app.get("/", (req, res) => {
   res.json({
     message: "Import Risk Analysis backend is running.",
@@ -421,6 +484,31 @@ app.get("/api/models/logistic-regression", requireAuth, (req, res) => {
     console.error("Error loading Logistic Regression model data:", error);
     res.status(500).json({
       error: "Unable to load Logistic Regression model data",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/labs/context", requireAuth, async (req, res) => {
+  try {
+    const predictionLabDataset = buildPredictionLabContext();
+    const scoredSamples = await attachLiveModelSignals({
+      featuredSamples: predictionLabDataset.featuredSamples,
+      comparisonSamples: predictionLabDataset.comparisonSamples,
+      labSamples: predictionLabDataset.labSamples,
+    });
+
+    res.json({
+      predictionLabDataset: {
+        ...predictionLabDataset,
+        ...scoredSamples,
+      },
+      algorithmMetrics: buildModelComparisonMetrics(),
+    });
+  } catch (error) {
+    console.error("Error building lab context:", error);
+    res.status(500).json({
+      error: "Unable to build lab context",
       details: error.message,
     });
   }

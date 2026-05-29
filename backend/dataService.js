@@ -15,6 +15,7 @@ const MODELS_DIR = path.join(PROJECT_ROOT, "ml", "models");
 
 let datasetCache = null;
 let datasetSummaryCache = null;
+let predictionLabContextCache = null;
 
 function parseCsvLine(line) {
   const values = [];
@@ -93,6 +94,150 @@ function readTextFile(fileName) {
 function toNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
+}
+
+function round(value, digits = 4) {
+  return Number(toNumber(value).toFixed(digits));
+}
+
+function createSampleId(productName, index) {
+  const slug = String(productName || `shipment-${index + 1}`)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return `${slug || "shipment"}-${index + 1}`;
+}
+
+function normalizePredictionSample(row, index) {
+  return {
+    id: createSampleId(row.product_name, index),
+    productName: row.product_name || `Shipment ${index + 1}`,
+    destinationPort: row.destination_port || "Unknown",
+    priceUsd: round(row.price_usd, 2),
+    weightKg: round(row.weight_kg, 3),
+    volumeM3: round(row.volume_m3, 4),
+    taxUsd: round(row.tax, 2),
+    taxRatio: round(row.tax_ratio, 4),
+    risk: row.risk || "LOW RISK",
+  };
+}
+
+function getQuantile(numbers, quantile) {
+  if (!numbers.length) {
+    return 0;
+  }
+
+  const sorted = [...numbers].sort((left, right) => left - right);
+  const position = (sorted.length - 1) * quantile;
+  const lowerIndex = Math.floor(position);
+  const upperIndex = Math.ceil(position);
+
+  if (lowerIndex === upperIndex) {
+    return sorted[lowerIndex];
+  }
+
+  const lowerValue = sorted[lowerIndex];
+  const upperValue = sorted[upperIndex];
+  const weight = position - lowerIndex;
+
+  return lowerValue + (upperValue - lowerValue) * weight;
+}
+
+function selectSamples(samples, count, predicate, sorter, usedIds) {
+  const available = samples
+    .filter((sample) => !usedIds.has(sample.id))
+    .filter((sample) => (typeof predicate === "function" ? predicate(sample) : true))
+    .sort(sorter);
+
+  const selected = available.slice(0, count);
+  selected.forEach((sample) => usedIds.add(sample.id));
+
+  return selected;
+}
+
+function buildSampleCollections(samples, quartiles) {
+  const usedIds = new Set();
+  const byTaxRatioAsc = (left, right) => left.taxRatio - right.taxRatio;
+  const byTaxRatioDesc = (left, right) => right.taxRatio - left.taxRatio;
+  const byMedianDistance = (left, right) =>
+    Math.abs(left.taxRatio - quartiles.median) - Math.abs(right.taxRatio - quartiles.median) ||
+    right.priceUsd - left.priceUsd;
+
+  const featuredSamples = [
+    ...selectSamples(
+      samples,
+      2,
+      (sample) => sample.risk === "LOW RISK" && sample.taxRatio >= quartiles.median,
+      byMedianDistance,
+      usedIds
+    ),
+    ...selectSamples(
+      samples,
+      2,
+      (sample) => sample.risk === "HIGH RISK",
+      byTaxRatioAsc,
+      usedIds
+    ),
+  ];
+
+  while (featuredSamples.length < 4) {
+    featuredSamples.push(
+      ...selectSamples(samples, 1, () => true, byMedianDistance, usedIds)
+    );
+  }
+
+  const comparisonSamples = [
+    ...selectSamples(
+      samples,
+      2,
+      (sample) => sample.risk === "HIGH RISK",
+      byTaxRatioAsc,
+      usedIds
+    ),
+    ...selectSamples(
+      samples,
+      2,
+      (sample) => sample.risk === "LOW RISK",
+      byTaxRatioDesc,
+      usedIds
+    ),
+  ];
+
+  while (comparisonSamples.length < 4) {
+    comparisonSamples.push(
+      ...selectSamples(samples, 1, () => true, byTaxRatioAsc, usedIds)
+    );
+  }
+
+  const labSamples = [
+    ...selectSamples(
+      samples,
+      7,
+      (sample) => sample.risk === "HIGH RISK",
+      byTaxRatioAsc,
+      usedIds
+    ),
+    ...selectSamples(
+      samples,
+      7,
+      (sample) => sample.risk === "LOW RISK",
+      byMedianDistance,
+      usedIds
+    ),
+  ];
+
+  while (labSamples.length < 14) {
+    labSamples.push(
+      ...selectSamples(samples, 1, () => true, byMedianDistance, usedIds)
+    );
+  }
+
+  return {
+    featuredSamples,
+    comparisonSamples,
+    labSamples,
+  };
 }
 
 function isMissing(value) {
@@ -384,6 +529,137 @@ function buildLogisticRegressionData() {
   };
 }
 
+function buildModelComparisonMetrics() {
+  const knnMetrics = readJsonFile("knn_metrics.json") || readJsonFile("knn_demo_metrics.json") || {};
+  const logisticMetrics = readJsonFile("logistic_regression_metrics.json") || {};
+
+  const knnAccuracy = round(knnMetrics.accuracy * 100, 2);
+  const logisticAccuracy = round(logisticMetrics.accuracy * 100, 2);
+  const knnMacroF1 = round(
+    (knnMetrics.macro_f1 ??
+      knnMetrics.classification_report?.["macro avg"]?.["f1-score"] ??
+      0) * 100,
+    2
+  );
+  const logisticF1 = round((logisticMetrics.f1_score ?? 0) * 100, 2);
+  const knnPrecision = round(
+    (knnMetrics.classification_report?.["HIGH RISK"]?.precision ?? 0) * 100,
+    2
+  );
+  const logisticPrecision = round((logisticMetrics.precision ?? 0) * 100, 2);
+  const knnRecall = round(
+    (knnMetrics.classification_report?.["HIGH RISK"]?.recall ?? 0) * 100,
+    2
+  );
+  const logisticRecall = round((logisticMetrics.recall ?? 0) * 100, 2);
+
+  return [
+    {
+      id: "accuracy",
+      title: "Accuracy",
+      knn: knnAccuracy,
+      logistic: logisticAccuracy,
+      description:
+        "Accuracy compares how often each saved model correctly classifies shipment records across the evaluation split.",
+      recommendation:
+        knnAccuracy >= logisticAccuracy
+          ? "KNN currently leads on overall correctness, so it is the better fit for the interactive labs."
+          : "Logistic Regression currently leads on overall correctness, so it deserves equal attention in the labs.",
+    },
+    {
+      id: "f1",
+      title: "F1 Score",
+      knn: knnMacroF1,
+      logistic: logisticF1,
+      description:
+        "F1 Score balances precision and recall so high-risk detection is not judged by accuracy alone.",
+      recommendation:
+        knnMacroF1 >= logisticF1
+          ? "KNN keeps the stronger balance across classes, which makes it more reliable for risk-focused exercises."
+          : "Logistic Regression has the stronger balance here, so its behavior should be highlighted more clearly.",
+    },
+    {
+      id: "precision",
+      title: "Precision",
+      knn: knnPrecision,
+      logistic: logisticPrecision,
+      description:
+        "Precision shows how trustworthy a HIGH RISK prediction is once the model raises an alert.",
+      recommendation:
+        knnPrecision >= logisticPrecision
+          ? "KNN produces cleaner risk flags, so students can trust its warnings more often."
+          : "Logistic Regression produces cleaner risk flags here, so its alerts may be more trustworthy.",
+    },
+    {
+      id: "recall",
+      title: "Recall",
+      knn: knnRecall,
+      logistic: logisticRecall,
+      description:
+        "Recall measures how many of the truly risky shipments the model manages to catch.",
+      recommendation:
+        knnRecall >= logisticRecall
+          ? "KNN recovers more risky shipments, which is valuable when the goal is to avoid missing suspicious imports."
+          : "Logistic Regression recovers more risky shipments here, which matters when missing a risky case is costly.",
+    },
+  ];
+}
+
+function buildPredictionLabContext() {
+  if (predictionLabContextCache) {
+    return predictionLabContextCache;
+  }
+
+  const dataset = buildDatasetSummary();
+  const { rows } = loadDataset();
+  const normalizedSamples = rows.map(normalizePredictionSample);
+  const taxRatios = normalizedSamples
+    .map((sample) => sample.taxRatio)
+    .filter((value) => Number.isFinite(value));
+
+  const quartiles = {
+    low: round(getQuantile(taxRatios, 0.25), 4),
+    median: round(getQuantile(taxRatios, 0.5), 4),
+    high: round(getQuantile(taxRatios, 0.75), 4),
+  };
+
+  const sampleCollections = buildSampleCollections(normalizedSamples, quartiles);
+  const knnMetrics = readJsonFile("knn_metrics.json") || readJsonFile("knn_demo_metrics.json") || {};
+
+  predictionLabContextCache = {
+    totalShipments: dataset.total_records,
+    lowRiskCount:
+      dataset.risk_distribution.find((item) => item.label === "LOW RISK")?.value ?? 0,
+    highRiskCount:
+      dataset.risk_distribution.find((item) => item.label === "HIGH RISK")?.value ?? 0,
+    lowRiskShare:
+      dataset.risk_distribution.find((item) => item.label === "LOW RISK")?.percentage ?? 0,
+    highRiskShare:
+      dataset.risk_distribution.find((item) => item.label === "HIGH RISK")?.percentage ?? 0,
+    averageTaxRatio: round(dataset.numeric_summary.tax_ratio, 4),
+    averagePriceUsd: round(dataset.numeric_summary.price_usd, 2),
+    averageWeightKg: round(dataset.numeric_summary.weight_kg, 2),
+    averageTaxUsd: round(dataset.numeric_summary.tax, 2),
+    taxRatioQuartiles: quartiles,
+    model: {
+      name: knnMetrics.model || "KNN Classifier",
+      accuracy: round((knnMetrics.accuracy ?? 0) * 100, 2),
+      macroF1: round((knnMetrics.macro_f1 ?? 0) * 100, 2),
+      rowsUsed: Number(knnMetrics.rows_used ?? 0),
+      testRows: Number(knnMetrics.test_rows ?? 0),
+    },
+    topPorts: dataset.top_ports.map((item) => ({
+      name: item.port,
+      shipmentCount: item.count,
+    })),
+    featuredSamples: sampleCollections.featuredSamples,
+    comparisonSamples: sampleCollections.comparisonSamples,
+    labSamples: sampleCollections.labSamples,
+  };
+
+  return predictionLabContextCache;
+}
+
 function buildDebugPaths() {
   return {
     project_root: PROJECT_ROOT,
@@ -401,6 +677,8 @@ module.exports = {
   buildSampleRows,
   buildKnnModelData,
   buildLogisticRegressionData,
+  buildModelComparisonMetrics,
+  buildPredictionLabContext,
   buildDebugPaths,
   loadDataset,
 };
