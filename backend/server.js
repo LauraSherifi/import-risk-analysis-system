@@ -1,5 +1,14 @@
 const crypto = require("crypto");
 const express = require("express");
+const {
+  buildDashboardSummary,
+  buildDatasetSummary,
+  buildSampleRows,
+  buildKnnModelData,
+  buildLogisticRegressionData,
+  buildDebugPaths,
+  loadDataset,
+} = require("./dataService");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -343,6 +352,76 @@ app.post("/predict", requireAuth, async (req, res) => {
     console.error("Error during prediction:", error);
     res.status(502).json({
       error: "Failed to reach the ML prediction service",
+    });
+  }
+});
+
+app.get("/api/debug/paths", requireAuth, (req, res) => {
+  res.json(buildDebugPaths());
+});
+
+app.get("/api/dashboard/summary", requireAuth, (req, res) => {
+  try {
+    res.json(buildDashboardSummary());
+  } catch (error) {
+    console.error("Error building dashboard summary:", error);
+    res.status(500).json({
+      error: "Unable to build dashboard summary",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/dataset/summary", requireAuth, (req, res) => {
+  try {
+    res.json(buildDatasetSummary());
+  } catch (error) {
+    console.error("Error building dataset summary:", error);
+    res.status(500).json({
+      error: "Unable to build dataset summary",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/dataset/sample", requireAuth, (req, res) => {
+  try {
+    const { rows } = loadDataset();
+    const limit = Number(req.query.limit || 20);
+
+    res.json({
+      total: rows.length,
+      items: buildSampleRows(rows, limit),
+    });
+  } catch (error) {
+    console.error("Error loading dataset sample:", error);
+    res.status(500).json({
+      error: "Unable to load dataset sample",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/models/knn", requireAuth, (req, res) => {
+  try {
+    res.json(buildKnnModelData());
+  } catch (error) {
+    console.error("Error loading KNN model data:", error);
+    res.status(500).json({
+      error: "Unable to load KNN model data",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/models/logistic-regression", requireAuth, (req, res) => {
+  try {
+    res.json(buildLogisticRegressionData());
+  } catch (error) {
+    console.error("Error loading Logistic Regression model data:", error);
+    res.status(500).json({
+      error: "Unable to load Logistic Regression model data",
+      details: error.message,
     });
   }
 });

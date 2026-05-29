@@ -8,6 +8,7 @@ import PredictionView from "./pages/PredictionView";
 import RiskMapPage from "./pages/RiskMapPage";
 import KNNModelPage from "./pages/KNNModelPage";
 import LogisticRegressionModelPage from "./pages/LogisticRegressionModelPage";
+import NeuralNetworkModelPage from "./pages/NeuralNetworkModelPage";
 import MiniTestingLabPage from "./pages/MiniTestingLabPage";
 import StarterPage from "./pages/StarterPage";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -26,11 +27,9 @@ function App() {
           <Route path="testing-lab" element={<MiniTestingLabPage />} />
           <Route path="risk-map" element={<RiskMapPage />} />
           <Route path="models/knn" element={<KNNModelPage />} />
-          <Route
-            path="models/logistic-regression"
-            element={<LogisticRegressionModelPage />}
-          />
-        </Route>
+          <Route path="models/logistic-regression" element={<LogisticRegressionModelPage />} />
+          <Route path="models/neural-network" element={<NeuralNetworkModelPage />} />
+          </Route>
       </Route>
 
       <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
@@ -40,10 +39,8 @@ function App() {
       <Route path="/prediction-history" element={<Navigate to="/app/prediction" replace />} />
       <Route path="/risk-map" element={<Navigate to="/app/risk-map" replace />} />
       <Route path="/models/knn" element={<Navigate to="/app/models/knn" replace />} />
-      <Route
-        path="/models/logistic-regression"
-        element={<Navigate to="/app/models/logistic-regression" replace />}
-      />
+      <Route path="/models/logistic-regression" element={<Navigate to="/app/models/logistic-regression" replace />} />
+      <Route path="/models/neural-network" element={<Navigate to="/app/models/neural-network" replace />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -21,14 +21,12 @@ export const modelPages = [
     visible: false,
   },
   {
-    id: "neural-network",
-    label: "Neural Network",
-    path: "/models/neural-network",
-    status: "not-ready",
-    visible: false,
-  },
+  id: "neural-network",
+  label: "Neural Network",
+  path: "/models/neural-network",
+  status: "placeholder",
+  visible: true,
+},
 ];
 
-export const completedModelPages = modelPages.filter(
-  (model) => model.visible && model.status === "ready"
-);
+export const completedModelPages = modelPages.filter((model) => model.visible);

@@ -560,9 +560,21 @@ nav a:hover {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
   margin-bottom: 22px;
+  width: 100%;
+}
+.main,
+.dashboard-page,
+.dataset-page,
+.panel,
+.card {
+  min-width: 0;
+}
+
+.card {
+  overflow: hidden;
 }
 
 .card,
@@ -3822,6 +3834,7 @@ td {
     align-items: flex-start;
     flex-direction: column;
   }
+}
 }
 
 @media (max-width: 980px) {
