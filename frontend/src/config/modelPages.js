@@ -21,6 +21,13 @@ export const modelPages = [
     visible: false,
   },
   {
+  id: "random-forest",
+  label: "Random Forest",
+  path: "/models/random-forest",
+  status: "ready",
+  visible: true,
+},
+  {
   id: "neural-network",
   label: "Neural Network",
   path: "/models/neural-network",

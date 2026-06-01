@@ -1,0 +1,80 @@
+{
+  "accuracy": 0.7956,
+  "precision": 0.1539,
+  "recall": 0.082,
+  "f1_score": 0.107,
+  "confusion_matrix": [
+    [
+      9400,
+      808
+    ],
+    [
+      1645,
+      147
+    ]
+  ],
+  "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.85      0.92      0.88     10208\n   HIGH RISK       0.15      0.08      0.11      1792\n\n    accuracy                           0.80     12000\n   macro avg       0.50      0.50      0.50     12000\nweighted avg       0.75      0.80      0.77     12000\n",
+  "baseline_accuracy": 0.8507,
+  "feature_importance": [
+    {
+      "feature": "value_per_kg",
+      "importance": 0.113592
+    },
+    {
+      "feature": "value_per_m3",
+      "importance": 0.109919
+    },
+    {
+      "feature": "price_usd",
+      "importance": 0.106887
+    },
+    {
+      "feature": "density_kg_m3",
+      "importance": 0.105807
+    },
+    {
+      "feature": "weight_kg",
+      "importance": 0.09811
+    },
+    {
+      "feature": "volume_m3",
+      "importance": 0.091494
+    },
+    {
+      "feature": "dimension_sum_m",
+      "importance": 0.07808
+    },
+    {
+      "feature": "width_m",
+      "importance": 0.077101
+    },
+    {
+      "feature": "length_m",
+      "importance": 0.075199
+    },
+    {
+      "feature": "height_m",
+      "importance": 0.072098
+    },
+    {
+      "feature": "max_dimension_m",
+      "importance": 0.071713
+    }
+  ],
+  "features_used": [
+    "price_usd",
+    "weight_kg",
+    "length_m",
+    "width_m",
+    "height_m",
+    "volume_m3",
+    "max_dimension_m",
+    "dimension_sum_m",
+    "density_kg_m3",
+    "value_per_kg",
+    "value_per_m3"
+  ],
+  "rows_used": 60000,
+  "test_rows": 12000,
+  "model": "Random Forest"
+}

@@ -529,6 +529,28 @@ function buildLogisticRegressionData() {
   };
 }
 
+function buildRandomForestData() {
+  const metrics = readJsonFile("random_forest_metrics.json");
+
+  return {
+    metrics,
+    report: readTextFile("random_forest_report.txt"),
+    features_used: metrics?.features_used ?? [
+      "price_usd",
+      "weight_kg",
+      "length_m",
+      "width_m",
+      "height_m",
+      "volume_m3",
+      "max_dimension_m",
+      "dimension_sum_m",
+      "density_kg_m3",
+      "value_per_kg",
+      "value_per_m3",
+    ],
+  };
+}
+
 function buildModelComparisonMetrics() {
   const knnMetrics = readJsonFile("knn_metrics.json") || readJsonFile("knn_demo_metrics.json") || {};
   const logisticMetrics = readJsonFile("logistic_regression_metrics.json") || {};
@@ -677,6 +699,7 @@ module.exports = {
   buildSampleRows,
   buildKnnModelData,
   buildLogisticRegressionData,
+  buildRandomForestData,
   buildModelComparisonMetrics,
   buildPredictionLabContext,
   buildDebugPaths,
