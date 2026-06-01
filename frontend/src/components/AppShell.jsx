@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { completedModelPages } from "../config/modelPages";
 import brandLogo from "../assets/brand-logo.png";
 import { useAuth } from "./AuthProvider";
+import AIAssistantWidget from "./AIAssistantWidget";
 
 function AppShell() {
   const { session, logout } = useAuth();
@@ -64,6 +65,8 @@ function AppShell() {
           <Outlet />
         </div>
       </main>
+
+      <AIAssistantWidget pathname={location.pathname} />
 
       {isLogoutModalOpen && (
         <div

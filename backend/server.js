@@ -11,6 +11,10 @@ const {
   buildDebugPaths,
   loadDataset,
 } = require("./dataService");
+const {
+  generateAssistantReply,
+  getAssistantConfiguration,
+} = require("./assistantService");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -510,6 +514,30 @@ app.get("/api/labs/context", requireAuth, async (req, res) => {
     res.status(500).json({
       error: "Unable to build lab context",
       details: error.message,
+    });
+  }
+});
+
+app.get("/api/assistant/config", requireAuth, (req, res) => {
+  res.json(getAssistantConfiguration());
+});
+
+app.post("/api/assistant/chat", requireAuth, async (req, res) => {
+  try {
+    const reply = await generateAssistantReply({
+      route: req.body?.route,
+      question: req.body?.question,
+      history: Array.isArray(req.body?.history) ? req.body.history : [],
+      predictionHistory,
+      historySummary: buildHistorySummary(),
+    });
+
+    res.json(reply);
+  } catch (error) {
+    console.error("Error generating assistant reply:", error);
+    res.status(error.statusCode || 500).json({
+      error: error.message || "Assistant reply failed",
+      details: error.details || null,
     });
   }
 });
