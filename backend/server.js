@@ -6,6 +6,7 @@ const {
   buildSampleRows,
   buildKnnModelData,
   buildLogisticRegressionData,
+  buildRandomForestData,
   buildModelComparisonMetrics,
   buildPredictionLabContext,
   buildDebugPaths,
@@ -488,6 +489,18 @@ app.get("/api/models/logistic-regression", requireAuth, (req, res) => {
     console.error("Error loading Logistic Regression model data:", error);
     res.status(500).json({
       error: "Unable to load Logistic Regression model data",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/models/random-forest", requireAuth, (req, res) => {
+  try {
+    res.json(buildRandomForestData());
+  } catch (error) {
+    console.error("Error loading Random Forest model data:", error);
+    res.status(500).json({
+      error: "Unable to load Random Forest model data",
       details: error.message,
     });
   }

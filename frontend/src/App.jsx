@@ -9,6 +9,7 @@ import RiskMapPage from "./pages/RiskMapPage";
 import KNNModelPage from "./pages/KNNModelPage";
 import LogisticRegressionModelPage from "./pages/LogisticRegressionModelPage";
 import NeuralNetworkModelPage from "./pages/NeuralNetworkModelPage";
+import RandomForestModelPage from "./pages/RandomForestModelPage";
 import MiniTestingLabPage from "./pages/MiniTestingLabPage";
 import StarterPage from "./pages/StarterPage";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -29,6 +30,7 @@ function App() {
           <Route path="models/knn" element={<KNNModelPage />} />
           <Route path="models/logistic-regression" element={<LogisticRegressionModelPage />} />
           <Route path="models/neural-network" element={<NeuralNetworkModelPage />} />
+          <Route path="models/random-forest" element={<RandomForestModelPage />} />
           </Route>
       </Route>
 
@@ -41,7 +43,8 @@ function App() {
       <Route path="/models/knn" element={<Navigate to="/app/models/knn" replace />} />
       <Route path="/models/logistic-regression" element={<Navigate to="/app/models/logistic-regression" replace />} />
       <Route path="/models/neural-network" element={<Navigate to="/app/models/neural-network" replace />} />
-
+      <Route path="/models/random-forest" element={<Navigate to="/app/models/random-forest" replace />} />
+      
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
