@@ -1,9 +1,19 @@
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 const express = require("express");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://127.0.0.1:8001";
+const RISK_MAP_DATA_PATH = path.resolve(
+  __dirname,
+  "..",
+  "ml",
+  "data",
+  "processed",
+  "cleaned_dataset.csv"
+);
 const MAX_HISTORY_ITEMS = 100;
 const AUTH_SECRET = process.env.AUTH_SECRET || "change-this-secret";
 const ADMIN_ID = process.env.ADMIN_ID || "admin";
@@ -11,6 +21,29 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 8;
 const predictionHistory = [];
 let nextHistoryId = 1;
+
+const PORT_COORDINATES = {
+  "Port of Busan (South Korea)": {
+    country: "South Korea",
+    position: [35.104, 129.04],
+  },
+  "Port of Tianjin (China)": {
+    country: "China",
+    position: [38.9846, 117.7334],
+  },
+  "Port of Tokyo (Japan)": {
+    country: "Japan",
+    position: [35.6167, 139.7667],
+  },
+  "Port of Singapore (Singapore)": {
+    country: "Singapore",
+    position: [1.2644, 103.8222],
+  },
+  "Port of Shanghai (China)": {
+    country: "China",
+    position: [31.2304, 121.4737],
+  },
+};
 
 app.use(express.json());
 
@@ -209,6 +242,366 @@ function buildHistorySummary() {
   return summary;
 }
 
+function parseCsvLine(line) {
+  const values = [];
+  let currentValue = "";
+  let insideQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    const nextCharacter = line[index + 1];
+
+    if (character === '"' && insideQuotes && nextCharacter === '"') {
+      currentValue += '"';
+      index += 1;
+    } else if (character === '"') {
+      insideQuotes = !insideQuotes;
+    } else if (character === "," && !insideQuotes) {
+      values.push(currentValue);
+      currentValue = "";
+    } else {
+      currentValue += character;
+    }
+  }
+
+  values.push(currentValue);
+  return values;
+}
+
+function normalizePortId(portName) {
+  return portName
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function getRiskLevel(riskScore) {
+  if (riskScore >= 18) {
+    return "high";
+  }
+
+  if (riskScore >= 12) {
+    return "medium";
+  }
+
+  return "low";
+}
+
+function getHotspotRiskLevel(riskScore) {
+  if (riskScore >= 22) {
+    return "high";
+  }
+
+  if (riskScore >= 17) {
+    return "medium";
+  }
+
+  return "low";
+}
+
+function buildPortRiskReason(port) {
+  if (port.risk === "high") {
+    return "High-risk shipment concentration is above the dataset baseline.";
+  }
+
+  if (port.risk === "medium") {
+    return "High-risk shipment concentration is close to the dataset baseline.";
+  }
+
+  return "High-risk shipment concentration is below the dataset baseline.";
+}
+
+function getDateKey(dateValue) {
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(dateValue || "");
+  return match ? match[1] : null;
+}
+
+function addProductCount(productMap, productName, isHighRisk) {
+  const normalizedProduct = productName || "Unknown product";
+
+  if (!productMap.has(normalizedProduct)) {
+    productMap.set(normalizedProduct, {
+      name: normalizedProduct,
+      shipments: 0,
+      highRisk: 0,
+    });
+  }
+
+  const product = productMap.get(normalizedProduct);
+  product.shipments += 1;
+
+  if (isHighRisk) {
+    product.highRisk += 1;
+  }
+}
+
+function rankProducts(productMap, sorter) {
+  return [...productMap.values()]
+    .sort(sorter)
+    .slice(0, 5)
+    .map((product) => ({
+      ...product,
+      riskScore:
+        product.shipments > 0
+          ? Number(((product.highRisk / product.shipments) * 100).toFixed(1))
+          : 0,
+    }));
+}
+
+function buildProductHotspots(productMap, minShipments = 50) {
+  return [...productMap.values()]
+    .map((product) => {
+      const riskScore =
+        product.shipments > 0
+          ? Number(((product.highRisk / product.shipments) * 100).toFixed(1))
+          : 0;
+
+      return {
+        ...product,
+        riskScore,
+        risk: getHotspotRiskLevel(riskScore),
+      };
+    })
+    .filter((product) => product.shipments >= minShipments)
+    .sort(
+      (left, right) =>
+        right.riskScore - left.riskScore ||
+        right.highRisk - left.highRisk ||
+        right.shipments - left.shipments
+    );
+}
+
+function buildRiskMapData(filters = {}) {
+  if (!fs.existsSync(RISK_MAP_DATA_PATH)) {
+    throw new Error(`Risk map dataset not found at ${RISK_MAP_DATA_PATH}`);
+  }
+
+  const csvContent = fs.readFileSync(RISK_MAP_DATA_PATH, "utf8").trim();
+  const [headerLine, ...rows] = csvContent.split(/\r?\n/);
+  const headers = parseCsvLine(headerLine);
+  const productIndex = headers.indexOf("product_name");
+  const shipmentDateIndex = headers.indexOf("shipment_date");
+  const destinationIndex = headers.indexOf("destination_port");
+  const riskIndex = headers.indexOf("risk");
+  const taxRatioIndex = headers.indexOf("tax_ratio");
+
+  if (
+    productIndex === -1 ||
+    shipmentDateIndex === -1 ||
+    destinationIndex === -1 ||
+    riskIndex === -1
+  ) {
+    throw new Error(
+      "Risk map dataset must contain product_name, shipment_date, destination_port, and risk columns"
+    );
+  }
+
+  const selectedDate = filters.date || "all";
+  const productSearch = (filters.product || "").trim().toLowerCase();
+  const minHotspotShipments = selectedDate === "all" && !productSearch ? 50 : 18;
+  const portGroups = new Map();
+  const portTrendGroups = new Map();
+  const dateSet = new Set();
+  const globalProductCounts = new Map();
+  let skippedRows = 0;
+  let matchedRows = 0;
+
+  for (const row of rows) {
+    if (!row.trim()) {
+      continue;
+    }
+
+    const values = parseCsvLine(row);
+    const productName = values[productIndex]?.trim() || "Unknown product";
+    const dateKey = getDateKey(values[shipmentDateIndex]);
+    const destinationPort = values[destinationIndex]?.trim() || "Unknown";
+    const coordinates = PORT_COORDINATES[destinationPort];
+    const risk = values[riskIndex]?.trim();
+    const isHighRisk = risk === "HIGH RISK";
+    const taxRatio = Number(values[taxRatioIndex]);
+
+    if (dateKey) {
+      dateSet.add(dateKey);
+    }
+
+    if (productSearch && !productName.toLowerCase().includes(productSearch)) {
+      continue;
+    }
+
+    if (coordinates && dateKey) {
+      if (!portTrendGroups.has(destinationPort)) {
+        portTrendGroups.set(destinationPort, {
+          id: normalizePortId(destinationPort),
+          dailyCounts: new Map(),
+        });
+      }
+
+      const trendPort = portTrendGroups.get(destinationPort);
+      if (!trendPort.dailyCounts.has(dateKey)) {
+        trendPort.dailyCounts.set(dateKey, {
+          date: dateKey,
+          shipments: 0,
+          highRisk: 0,
+        });
+      }
+
+      const trendEntry = trendPort.dailyCounts.get(dateKey);
+      trendEntry.shipments += 1;
+
+      if (isHighRisk) {
+        trendEntry.highRisk += 1;
+      }
+    }
+
+    if (selectedDate !== "all" && dateKey !== selectedDate) {
+      continue;
+    }
+
+    matchedRows += 1;
+    addProductCount(globalProductCounts, productName, isHighRisk);
+
+    if (!coordinates) {
+      skippedRows += 1;
+      continue;
+    }
+
+    if (!portGroups.has(destinationPort)) {
+      portGroups.set(destinationPort, {
+        id: normalizePortId(destinationPort),
+        sourceName: destinationPort,
+        name: destinationPort.replace(/\s*\([^)]*\)\s*$/, ""),
+        country: coordinates.country,
+        position: coordinates.position,
+        shipments: 0,
+        highRisk: 0,
+        lowRisk: 0,
+        taxRatioSum: 0,
+        taxRatioCount: 0,
+        productCounts: new Map(),
+      });
+    }
+
+    const port = portGroups.get(destinationPort);
+
+    port.shipments += 1;
+    if (isHighRisk) {
+      port.highRisk += 1;
+    } else if (risk === "LOW RISK") {
+      port.lowRisk += 1;
+    }
+
+    if (Number.isFinite(taxRatio)) {
+      port.taxRatioSum += taxRatio;
+      port.taxRatioCount += 1;
+    }
+
+    addProductCount(port.productCounts, productName, isHighRisk);
+
+  }
+
+  const ports = [...portGroups.values()]
+    .map((port) => {
+      const riskScore = Number(((port.highRisk / port.shipments) * 100).toFixed(1));
+      const averageTaxRatio =
+        port.taxRatioCount > 0
+          ? Number((port.taxRatioSum / port.taxRatioCount).toFixed(4))
+          : null;
+      const risk = getRiskLevel(riskScore);
+      const productHotspots = buildProductHotspots(
+        port.productCounts,
+        minHotspotShipments
+      );
+      const hotspot = productHotspots[0] || null;
+      const trendPort = portTrendGroups.get(port.sourceName);
+      const dailyTrend = trendPort
+        ? [...trendPort.dailyCounts.values()]
+            .sort((left, right) => left.date.localeCompare(right.date))
+            .map((entry) => ({
+              ...entry,
+              riskScore:
+                entry.shipments > 0
+                  ? Number(((entry.highRisk / entry.shipments) * 100).toFixed(1))
+                  : 0,
+            }))
+        : [];
+
+      return {
+        id: port.id,
+        name: port.name,
+        country: port.country,
+        position: port.position,
+        shipments: port.shipments,
+        highRisk: port.highRisk,
+        lowRisk: port.lowRisk,
+        risk,
+        riskScore,
+        averageTaxRatio,
+        reason: buildPortRiskReason({ ...port, risk }),
+        hotspot,
+        hotspotRisk: hotspot?.risk || risk,
+        hotspotRiskScore: hotspot?.riskScore || riskScore,
+        topProducts: rankProducts(
+          port.productCounts,
+          (left, right) => right.shipments - left.shipments
+        ),
+        topHighRiskProducts: rankProducts(
+          port.productCounts,
+          (left, right) =>
+            right.highRisk - left.highRisk || right.shipments - left.shipments
+        ),
+        productHotspots: productHotspots.slice(0, 5),
+        dailyTrend,
+      };
+    })
+    .sort((left, right) => right.riskScore - left.riskScore);
+
+  const totalShipments = ports.reduce((sum, port) => sum + port.shipments, 0);
+  const highRiskShipments = ports.reduce((sum, port) => sum + port.highRisk, 0);
+  const datasetRiskScore =
+    totalShipments > 0
+      ? Number(((highRiskShipments / totalShipments) * 100).toFixed(1))
+      : 0;
+
+  return {
+    ports,
+    filters: {
+      selectedDate,
+      product: filters.product || "",
+      availableDates: [...dateSet].sort(),
+      topProducts: rankProducts(
+        globalProductCounts,
+        (left, right) => right.shipments - left.shipments
+      ),
+    },
+    hotspots: ports
+      .filter((port) => port.hotspot)
+      .map((port) => ({
+        portId: port.id,
+        portName: port.name,
+        country: port.country,
+        position: port.position,
+        ...port.hotspot,
+      }))
+      .sort(
+        (left, right) =>
+          right.riskScore - left.riskScore ||
+          right.highRisk - left.highRisk ||
+          right.shipments - left.shipments
+      )
+      .slice(0, 10),
+    summary: {
+      totalPorts: ports.length,
+      totalShipments,
+      highRiskShipments,
+      lowRiskShipments: ports.reduce((sum, port) => sum + port.lowRisk, 0),
+      skippedRows,
+      matchedRows,
+      datasetRiskScore,
+    },
+  };
+}
+
 app.get("/", (req, res) => {
   res.json({
     message: "Import Risk Analysis backend is running.",
@@ -254,6 +647,22 @@ app.get("/prediction-history", requireAuth, (req, res) => {
 
 app.get("/prediction-history/summary", requireAuth, (req, res) => {
   res.json(buildHistorySummary());
+});
+
+app.get("/risk-map", requireAuth, (req, res) => {
+  try {
+    res.json(
+      buildRiskMapData({
+        date: typeof req.query.date === "string" ? req.query.date : "all",
+        product: typeof req.query.product === "string" ? req.query.product : "",
+      })
+    );
+  } catch (error) {
+    console.error("Error building risk map data:", error);
+    res.status(500).json({
+      error: "Unable to build risk map data",
+    });
+  }
 });
 
 app.get("/ml-health", requireAuth, async (req, res) => {

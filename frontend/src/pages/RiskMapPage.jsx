@@ -3,139 +3,320 @@ import PropTypes from "prop-types";
 import {
   CircleMarker,
   MapContainer,
-  Polyline,
   Popup,
   TileLayer,
   Tooltip,
   useMap,
 } from "react-leaflet";
 
-import { ports, routes } from "../data/mapData";
+import { getAuthHeaders } from "../auth";
 
 const riskLabels = {
-  all: "All routes",
+  all: "All ports",
   high: "High risk",
-  medium: "Medium risk",
+  medium: "Watchlist",
   low: "Low risk",
 };
 
-const routeColors = {
+const riskColors = {
   high: "#ef4444",
   medium: "#f59e0b",
   low: "#22c55e",
 };
 
-function getPortById(portId) {
-  return ports.find((port) => port.id === portId);
-}
+const defaultSummary = {
+  totalPorts: 0,
+  totalShipments: 0,
+  highRiskShipments: 0,
+  lowRiskShipments: 0,
+  skippedRows: 0,
+  matchedRows: 0,
+  datasetRiskScore: 0,
+};
 
-function SearchMapFocus({ selectedPortId }) {
+const defaultFilters = {
+  selectedDate: "all",
+  product: "",
+  availableDates: [],
+  topProducts: [],
+};
+
+const formatNumber = (value) =>
+  new Intl.NumberFormat("en-US").format(Number(value || 0));
+
+function SearchMapFocus({ selectedPort }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!selectedPortId) {
-      return;
+    if (selectedPort) {
+      const handleMoveEnd = () => {
+        map.panBy([130, 0], { animate: true, duration: 0.35 });
+      };
+
+      map.once("moveend", handleMoveEnd);
+      map.flyTo(selectedPort.position, 5, { duration: 0.8 });
+
+      return () => {
+        map.off("moveend", handleMoveEnd);
+      };
     }
 
-    const selectedPort = getPortById(selectedPortId);
-    if (selectedPort) {
-      map.flyTo(selectedPort.position, 5, { duration: 0.8 });
-    }
-  }, [map, selectedPortId]);
+    return undefined;
+  }, [map, selectedPort]);
 
   return null;
 }
 
 SearchMapFocus.propTypes = {
-  selectedPortId: PropTypes.string,
+  selectedPort: PropTypes.shape({
+    position: PropTypes.arrayOf(PropTypes.number).isRequired,
+  }),
 };
 
 function RiskMapPage() {
+  const [ports, setPorts] = useState([]);
+  const [hotspots, setHotspots] = useState([]);
+  const [summary, setSummary] = useState(defaultSummary);
+  const [datasetFilters, setDatasetFilters] = useState(defaultFilters);
   const [riskFilter, setRiskFilter] = useState("all");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showRoutes, setShowRoutes] = useState(true);
-  const [showPorts, setShowPorts] = useState(true);
-  const [selectedRoute, setSelectedRoute] = useState(routes[0]);
+  const [selectedPortFilter, setSelectedPortFilter] = useState("all");
+  const [productSearch, setProductSearch] = useState("");
+  const [appliedProductSearch, setAppliedProductSearch] = useState("");
+  const [selectedDate, setSelectedDate] = useState("all");
+  const [selectedPortId, setSelectedPortId] = useState("");
+  const [focusPortId, setFocusPortId] = useState("");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const selectedPort = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    if (!normalizedSearch) {
-      return null;
-    }
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setAppliedProductSearch(productSearch.trim());
+    }, 450);
 
-    return ports.find(
-      (port) => {
-        const fullLabel = `${port.name}, ${port.country}`.toLowerCase();
-        return (
-          fullLabel.includes(normalizedSearch) ||
-          port.name.toLowerCase().includes(normalizedSearch) ||
-          port.country.toLowerCase().includes(normalizedSearch)
-        );
+    return () => window.clearTimeout(timer);
+  }, [productSearch]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
+    async function loadRiskMapData() {
+      if (ports.length === 0) {
+        setLoading(true);
       }
-    );
-  }, [searchTerm]);
 
-  const filteredRoutes = useMemo(() => {
-    if (riskFilter === "all") {
-      return routes;
+      try {
+        const params = new URLSearchParams();
+        if (selectedDate !== "all") {
+          params.set("date", selectedDate);
+        }
+        if (appliedProductSearch) {
+          params.set("product", appliedProductSearch);
+        }
+
+        const queryString = params.toString();
+        const response = await fetch(`/risk-map${queryString ? `?${queryString}` : ""}`, {
+          headers: getAuthHeaders(),
+          signal: controller.signal,
+        });
+        const contentType = response.headers.get("content-type") || "";
+
+        if (!contentType.includes("application/json")) {
+          throw new Error("Risk map API returned a non-JSON response. Check that the backend server is running.");
+        }
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Unable to load risk map data");
+        }
+
+        if (isMounted) {
+          setPorts(data.ports || []);
+          setHotspots(data.hotspots || []);
+          setSummary(data.summary || defaultSummary);
+          setDatasetFilters(data.filters || defaultFilters);
+          setSelectedPortId((current) => current || data.ports?.[0]?.id || "");
+          setFocusPortId((current) => current || data.ports?.[0]?.id || "");
+          setError("");
+        }
+      } catch (loadError) {
+        if (loadError.name === "AbortError") {
+          return;
+        }
+
+        if (isMounted) {
+          setError(loadError.message);
+          setPorts([]);
+          setHotspots([]);
+          setSummary(defaultSummary);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
     }
 
-    return routes.filter((route) => route.risk === riskFilter);
-  }, [riskFilter]);
+    loadRiskMapData();
 
-  const visiblePortIds = useMemo(() => {
-    const ids = new Set();
-    filteredRoutes.forEach((route) => {
-      ids.add(route.origin);
-      ids.add(route.destination);
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [appliedProductSearch, selectedDate]);
+
+  useEffect(() => {
+    if (!isPlaying || datasetFilters.availableDates.length === 0) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setSelectedDate((currentDate) => {
+        const dates = datasetFilters.availableDates;
+        const currentIndex = dates.indexOf(currentDate);
+        const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % dates.length;
+        return dates[nextIndex];
+      });
+    }, 1200);
+
+    return () => window.clearInterval(timer);
+  }, [datasetFilters.availableDates, isPlaying]);
+
+  useEffect(() => {
+    if (selectedPortFilter === "all") {
+      return;
+    }
+
+    const selectedPort = ports.find((port) => port.id === selectedPortFilter);
+    if (selectedPort) {
+      setSelectedPortId(selectedPort.id);
+      setFocusPortId(selectedPort.id);
+    }
+  }, [ports, selectedPortFilter]);
+
+  const filteredPorts = useMemo(() => {
+    return ports.filter((port) => {
+      const matchesRisk =
+        riskFilter === "all" || port.risk === riskFilter;
+      const matchesPort =
+        selectedPortFilter === "all" || port.id === selectedPortFilter;
+
+      return matchesRisk && matchesPort;
     });
-    return ids;
-  }, [filteredRoutes]);
+  }, [ports, riskFilter, selectedPortFilter]);
 
-  const routeStats = useMemo(() => {
-    const highRiskRoutes = filteredRoutes.filter((route) => route.risk === "high");
-    const mediumRiskRoutes = filteredRoutes.filter(
-      (route) => route.risk === "medium"
-    );
-    const lowRiskRoutes = filteredRoutes.filter((route) => route.risk === "low");
-    const totalShipments = filteredRoutes.reduce(
-      (sum, route) => sum + route.shipments,
+  const selectedPort = useMemo(
+    () =>
+      filteredPorts.find((port) => port.id === selectedPortId) ||
+      filteredPorts[0] ||
+      null,
+    [filteredPorts, selectedPortId]
+  );
+
+  useEffect(() => {
+    if (!filteredPorts.some((port) => port.id === selectedPortId)) {
+      setSelectedPortId(filteredPorts[0]?.id || "");
+    }
+  }, [filteredPorts, selectedPortId]);
+
+  const focusPort = useMemo(
+    () => ports.find((port) => port.id === focusPortId) || null,
+    [focusPortId, ports]
+  );
+
+  const shipmentRange = useMemo(() => {
+    const shipmentCounts = ports.map((port) => port.shipments);
+    return {
+      min: Math.min(...shipmentCounts, 0),
+      max: Math.max(...shipmentCounts, 0),
+    };
+  }, [ports]);
+
+  const productChips = useMemo(() => {
+    const chipMap = new Map();
+    hotspots.forEach((hotspot) => {
+      if (!chipMap.has(hotspot.name)) {
+        chipMap.set(hotspot.name, hotspot);
+      }
+    });
+    datasetFilters.topProducts.forEach((product) => {
+      if (!chipMap.has(product.name)) {
+        chipMap.set(product.name, product);
+      }
+    });
+    return [...chipMap.values()].slice(0, 8);
+  }, [datasetFilters.topProducts, hotspots]);
+
+  const portStats = useMemo(() => {
+    const highHotspots = filteredPorts.filter((port) => port.hotspotRisk === "high");
+    const totalShipments = filteredPorts.reduce(
+      (sum, port) => sum + port.shipments,
       0
     );
-    const riskiestRoute = [...filteredRoutes].sort(
-      (a, b) => b.riskScore - a.riskScore
+    const highRiskShipments = filteredPorts.reduce(
+      (sum, port) => sum + port.highRisk,
+      0
+    );
+    const topHotspotPort = [...filteredPorts].sort(
+      (left, right) => right.hotspotRiskScore - left.hotspotRiskScore
+    )[0];
+    const busiestPort = [...filteredPorts].sort(
+      (left, right) => right.shipments - left.shipments
     )[0];
 
     return {
-      totalRoutes: filteredRoutes.length,
-      highRiskRoutes: highRiskRoutes.length,
-      mediumRiskRoutes: mediumRiskRoutes.length,
-      lowRiskRoutes: lowRiskRoutes.length,
+      totalPorts: filteredPorts.length,
+      highHotspots: highHotspots.length,
       totalShipments,
-      riskiestRoute,
+      highRiskShipments,
+      topHotspotPort,
+      busiestPort,
     };
-  }, [filteredRoutes]);
+  }, [filteredPorts]);
 
-  useEffect(() => {
-    if (!filteredRoutes.some((route) => route.id === selectedRoute?.id)) {
-      setSelectedRoute(filteredRoutes[0] || null);
-    }
-  }, [filteredRoutes, selectedRoute]);
-
-  const portOptions = ports.map((port) => `${port.name}, ${port.country}`);
+  const activeHotspot = selectedPort?.hotspot || null;
+  const topHotspot = hotspots[0] || null;
+  const activeTrend = selectedPort?.dailyTrend || [];
+  const trendPeak = Math.max(...activeTrend.map((item) => item.riskScore), 1);
 
   const resetMapView = () => {
     setRiskFilter("all");
-    setSearchTerm("");
-    setShowRoutes(true);
-    setShowPorts(true);
-    setSelectedRoute(routes[0]);
+    setSelectedPortFilter("all");
+    setProductSearch("");
+    setAppliedProductSearch("");
+    setSelectedDate("all");
+    setIsPlaying(false);
+    setSelectedPortId(ports[0]?.id || "");
+    setFocusPortId(ports[0]?.id || "");
+  };
+
+  const selectPort = (portId) => {
+    setSelectedPortId(portId);
+    setFocusPortId(portId);
+  };
+
+  const getMarkerRadius = (shipments, isSelected) => {
+    if (shipmentRange.max <= shipmentRange.min) {
+      return isSelected ? 17 : 12;
+    }
+
+    const scale =
+      (shipments - shipmentRange.min) / (shipmentRange.max - shipmentRange.min);
+    return Math.round((isSelected ? 17 : 11) + scale * 9);
+  };
+
+  const setProductAndStop = (productName) => {
+    setProductSearch(productName);
+    setAppliedProductSearch(productName);
+    setIsPlaying(false);
   };
 
   return (
-    <section className="map-page">
+    <section className="map-page hotspot-map-page">
       <MapContainer
-        center={[28, 35]}
+        center={[25, 118]}
         className="risk-map"
         maxBounds={[
           [-85, -190],
@@ -143,79 +324,70 @@ function RiskMapPage() {
         ]}
         minZoom={2}
         scrollWheelZoom
-        zoom={2}
+        zoom={3}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <SearchMapFocus selectedPortId={selectedPort?.id} />
+        <SearchMapFocus selectedPort={focusPort} />
 
-        {showRoutes &&
-          filteredRoutes.map((route) => {
-            const origin = getPortById(route.origin);
-            const destination = getPortById(route.destination);
+        {filteredPorts.map((port) => {
+          const isSelected = selectedPort?.id === port.id;
+          const isTopHotspot = topHotspot?.portId === port.id;
+            const markerRisk = port.risk;
 
-            return (
-              <Polyline
-                eventHandlers={{
-                  click: () => setSelectedRoute(route),
-                  mouseover: () => setSelectedRoute(route),
-                }}
-                key={route.id}
-                pathOptions={{
-                  color: routeColors[route.risk],
-                  opacity: selectedRoute?.id === route.id ? 0.95 : 0.68,
-                  weight: selectedRoute?.id === route.id ? 6 : 4,
-                }}
-                positions={[origin.position, destination.position]}
-              >
-                <Tooltip sticky>
-                  {origin.name} to {destination.name}: {route.riskScore}% risk
-                </Tooltip>
-              </Polyline>
-            );
-          })}
-
-        {showPorts &&
-          ports
-            .filter((port) => riskFilter === "all" || visiblePortIds.has(port.id))
-            .map((port) => {
-              const riskPercentage = Math.round((port.highRisk / port.shipments) * 100);
-              const isSelected = selectedPort?.id === port.id;
-
-              return (
-                <CircleMarker
-                  center={port.position}
-                  key={port.id}
-                  pathOptions={{
-                    color: isSelected ? "#111827" : "#0f4c81",
-                    fillColor: riskPercentage > 15 ? "#ef4444" : "#22c55e",
-                    fillOpacity: 0.86,
-                    opacity: 0.95,
-                    weight: isSelected ? 4 : 2,
-                  }}
-                  radius={isSelected ? 13 : 9}
-                >
-                  <Tooltip direction="top" offset={[0, -8]} sticky>
-                    {port.name}
-                  </Tooltip>
-                  <Popup>
-                    <strong>{port.name}</strong>
-                    <span>{port.country}</span>
-                    <span>{port.shipments.toLocaleString()} shipments</span>
-                    <span>{riskPercentage}% high risk</span>
-                  </Popup>
-                </CircleMarker>
-              );
-            })}
+          return (
+            <CircleMarker
+              center={port.position}
+              eventHandlers={{
+                click: () => selectPort(port.id),
+              }}
+              key={port.id}
+              pathOptions={{
+                className: isTopHotspot ? "risk-marker-pulse" : "risk-marker",
+                color: isSelected ? "#111827" : "#0f4c81",
+                fillColor: riskColors[markerRisk],
+                fillOpacity: isSelected ? 0.92 : 0.8,
+                opacity: 0.95,
+                weight: isSelected ? 4 : 2,
+              }}
+              radius={getMarkerRadius(port.shipments, isSelected)}
+            >
+              <Tooltip direction="top" offset={[0, -8]} sticky>
+                {port.name}: {port.hotspot?.name || "No product hotspot"}{" "}
+                {port.riskScore}% risk
+              </Tooltip>
+              <Popup>
+                <strong>{port.name}</strong>
+                <span>{port.country}</span>
+                <span>{formatNumber(port.shipments)} matching shipments</span>
+                <span>{formatNumber(port.highRisk)} high-risk shipments</span>
+                <span>
+                  Hotspot: {port.hotspot?.name || "No hotspot"} (
+                    {port.riskScore}%)
+                </span>
+              </Popup>
+            </CircleMarker>
+          );
+        })}
       </MapContainer>
+
+      <div className="map-overlay map-title-panel">
+        <span>Shipment Risk Hotspots</span>
+        <strong>{topHotspot?.name || "Dataset monitor"}</strong>
+        <p>
+          {topHotspot
+            ? `${topHotspot.portName} leads the current view at ${topHotspot.riskScore}% high risk.`
+            : "No hotspot found for the current filters."}
+        </p>
+      </div>
 
       <div className="map-overlay map-toolbar">
         <div className="map-toolbar-header">
           <div>
-            <span>Global Route Monitor</span>
+            <span>Controls</span>
             <strong>{riskLabels[riskFilter]}</strong>
           </div>
           <button type="button" onClick={resetMapView}>
@@ -223,22 +395,64 @@ function RiskMapPage() {
           </button>
         </div>
 
+        <div className="map-filter-grid">
+          <label className="map-field">
+            <span>Port</span>
+            <select
+              onChange={(event) => {
+                setSelectedPortFilter(event.target.value);
+                setIsPlaying(false);
+              }}
+              value={selectedPortFilter}
+            >
+              <option value="all">All ports</option>
+              {ports.map((port) => (
+                <option key={port.id} value={port.id}>
+                  {port.name}, {port.country}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="map-field">
+            <span>Date</span>
+            <select
+              onChange={(event) => {
+                setSelectedDate(event.target.value);
+                setIsPlaying(false);
+              }}
+              value={selectedDate}
+            >
+              <option value="all">All dates</option>
+              {datasetFilters.availableDates.map((date) => (
+                <option key={date} value={date}>
+                  {date}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
         <label className="map-field">
-          <span>Search port</span>
+          <span>Product filter</span>
           <input
-            list="port-options"
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Example: Rotterdam"
-            value={searchTerm}
+            list="product-options"
+            onChange={(event) => {
+              setProductSearch(event.target.value);
+              setIsPlaying(false);
+            }}
+            placeholder="Example: Big Bag with Fertilizer"
+            value={productSearch}
           />
         </label>
-        <datalist id="port-options">
-          {portOptions.map((portOption) => (
-            <option key={portOption} value={portOption} />
+
+        <datalist id="product-options">
+          {datasetFilters.topProducts.map((product) => (
+            <option key={product.name} value={product.name} />
           ))}
         </datalist>
 
-        <div className="segmented-control" aria-label="Risk filter">
+        <div className="segmented-control" aria-label="Risk mode">
           {Object.entries(riskLabels).map(([value, label]) => (
             <button
               className={riskFilter === value ? "active" : ""}
@@ -251,109 +465,219 @@ function RiskMapPage() {
           ))}
         </div>
 
-        <div className="map-switches">
-          <label>
-            <input
-              checked={showRoutes}
-              onChange={(event) => setShowRoutes(event.target.checked)}
-              type="checkbox"
-            />
-            Routes
-          </label>
-          <label>
-            <input
-              checked={showPorts}
-              onChange={(event) => setShowPorts(event.target.checked)}
-              type="checkbox"
-            />
-            Ports
-          </label>
+        <div className="map-play-row">
+          <button
+            className={isPlaying ? "active" : ""}
+            disabled={datasetFilters.availableDates.length === 0}
+            onClick={() => setIsPlaying((current) => !current)}
+            type="button"
+          >
+            {isPlaying ? "Pause Timeline" : "Play Timeline"}
+          </button>
+          <span>{selectedDate === "all" ? "All dates" : selectedDate}</span>
         </div>
+
+        <div className="map-chip-row">
+          {productChips.map((product) => (
+            <button
+              className={productSearch === product.name ? "active" : ""}
+              key={product.name}
+              onClick={() => setProductAndStop(product.name)}
+              type="button"
+            >
+              {product.name}
+            </button>
+          ))}
+        </div>
+
+        <div className="map-filter-summary">
+          <span>{formatNumber(filteredPorts.length)} ports shown</span>
+          <span>{formatNumber(summary.matchedRows)} matching shipments</span>
+        </div>
+
+        {loading && <p className="map-status-text">Loading dataset risk map...</p>}
+        {error && <p className="map-status-text map-status-error">{error}</p>}
       </div>
 
-      <div className="map-overlay map-summary">
+      <div className="map-overlay map-summary hotspot-summary">
+        <div className="hotspot-panel-header">
+          <div>
+            <span>Selected Port Profile</span>
+            <strong>
+              {selectedPort
+                ? `${selectedPort.name}, ${selectedPort.country}`
+                : "No port selected"}
+            </strong>
+          </div>
+          <small>{summary.datasetRiskScore}% dataset baseline</small>
+        </div>
+
         <div className="map-stat-grid">
           <div>
-            <span>Routes</span>
-            <strong>{routeStats.totalRoutes}</strong>
+            <span>Hotspot</span>
+            <strong>{activeHotspot ? `${activeHotspot.riskScore}%` : "--"}</strong>
           </div>
           <div>
             <span>High Risk</span>
-            <strong>{routeStats.highRiskRoutes}</strong>
+            <strong>{formatNumber(selectedPort?.highRisk)}</strong>
           </div>
           <div>
             <span>Shipments</span>
-            <strong>{routeStats.totalShipments.toLocaleString()}</strong>
+            <strong>{formatNumber(selectedPort?.shipments)}</strong>
           </div>
         </div>
 
-        {routeStats.riskiestRoute && (
-          <div className="route-detail">
-            <span>Selected Route</span>
-            <strong>
-              {getPortById(selectedRoute?.origin)?.name} to{" "}
-              {getPortById(selectedRoute?.destination)?.name}
-            </strong>
-            <p>{selectedRoute?.reason}</p>
+        {activeHotspot && (
+          <div className="hotspot-focus-card">
+            <span>Current Hotspot</span>
+            <strong>{activeHotspot.name}</strong>
+            <p>
+              {formatNumber(activeHotspot.highRisk)} high-risk shipments out of{" "}
+              {formatNumber(activeHotspot.shipments)} matching records.
+            </p>
             <div className="map-risk-meter">
               <div
                 style={{
-                  width: `${selectedRoute?.riskScore || 0}%`,
-                  background: routeColors[selectedRoute?.risk || "low"],
+                  width: `${Math.min(activeHotspot.riskScore, 100)}%`,
+                  background: riskColors[activeHotspot.risk],
                 }}
               />
             </div>
-            <small>{selectedRoute?.riskScore}% route risk score</small>
           </div>
         )}
 
-        <div className="map-risk-distribution">
-          <div className="distribution-row">
-            <span>High risk</span>
-            <div>
-              <i
-                style={{
-                  width: `${(routeStats.highRiskRoutes / routeStats.totalRoutes) * 100}%`,
-                  background: routeColors.high,
-                }}
-              />
-            </div>
-            <strong>{routeStats.highRiskRoutes}</strong>
+        <div className="hotspot-leaderboard">
+          <div className="map-trend-header">
+            <span>Top Hotspots</span>
+            <strong>{hotspots.length} signals</strong>
           </div>
-          <div className="distribution-row">
-            <span>Medium risk</span>
-            <div>
-              <i
-                style={{
-                  width: `${(routeStats.mediumRiskRoutes / routeStats.totalRoutes) * 100}%`,
-                  background: routeColors.medium,
-                }}
-              />
-            </div>
-            <strong>{routeStats.mediumRiskRoutes}</strong>
-          </div>
-          <div className="distribution-row">
-            <span>Low risk</span>
-            <div>
-              <i
-                style={{
-                  width: `${(routeStats.lowRiskRoutes / routeStats.totalRoutes) * 100}%`,
-                  background: routeColors.low,
-                }}
-              />
-            </div>
-            <strong>{routeStats.lowRiskRoutes}</strong>
-          </div>
+          {hotspots.slice(0, 5).map((hotspot, index) => (
+            <button
+              className={selectedPort?.id === hotspot.portId ? "active" : ""}
+              key={`${hotspot.portId}-${hotspot.name}`}
+              onClick={() => {
+                selectPort(hotspot.portId);
+                setProductSearch(hotspot.name);
+                setAppliedProductSearch(hotspot.name);
+                setIsPlaying(false);
+              }}
+              type="button"
+            >
+              <span>{index + 1}</span>
+              <div>
+                <strong>{hotspot.name}</strong>
+                <small>
+                  {hotspot.portName} - {hotspot.riskScore}% -{" "}
+                  {formatNumber(hotspot.highRisk)} high risk
+                </small>
+              </div>
+            </button>
+          ))}
         </div>
 
+        {activeTrend.length > 0 && (
+          <div className="map-trend">
+            <div className="map-trend-header">
+              <span>Daily Risk Trend</span>
+              <div>
+                {selectedDate !== "all" && (
+                  <button
+                    onClick={() => {
+                      setSelectedDate("all");
+                      setIsPlaying(false);
+                    }}
+                    type="button"
+                  >
+                    All dates
+                  </button>
+                )}
+                <strong>{selectedPort?.name}</strong>
+              </div>
+            </div>
+            <div className="map-trend-bars">
+              {activeTrend.map((item) => (
+                <button
+                  className={selectedDate === item.date ? "active" : ""}
+                  key={item.date}
+                  onClick={() => {
+                    setSelectedDate((currentDate) =>
+                      currentDate === item.date ? "all" : item.date
+                    );
+                    setIsPlaying(false);
+                  }}
+                  style={{ height: `${28 + (item.riskScore / trendPeak) * 72}px` }}
+                  title={`${item.date}: ${item.riskScore}% high risk`}
+                  type="button"
+                >
+                  <i style={{ background: riskColors[getRiskBand(item.riskScore)] }} />
+                  <span>{item.date.slice(5)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {selectedPort?.productHotspots?.length > 0 && (
+          <div className="map-port-intel hotspot-products">
+            <div>
+              <span>Port Hotspots</span>
+              {selectedPort.productHotspots.slice(0, 4).map((product) => (
+                <button
+                  key={product.name}
+                  onClick={() => setProductAndStop(product.name)}
+                  type="button"
+                >
+                  <strong>{product.name}</strong>
+                  <small>
+                    {product.riskScore}% risk - {formatNumber(product.highRisk)} high
+                  </small>
+                </button>
+              ))}
+            </div>
+
+            <div>
+              <span>Common Products</span>
+              {selectedPort.topProducts.slice(0, 4).map((product) => (
+                <button
+                  key={product.name}
+                  onClick={() => setProductAndStop(product.name)}
+                  type="button"
+                >
+                  <strong>{product.name}</strong>
+                  <small>{formatNumber(product.shipments)} shipments</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="map-legend">
-          <span><i className="legend-high" /> High risk route</span>
-          <span><i className="legend-medium" /> Medium risk route</span>
-          <span><i className="legend-low" /> Low risk route</span>
+          <span><i className="legend-high" /> High risk</span>
+          <span><i className="legend-medium" /> Watchlist</span>
+          <span><i className="legend-low" /> Low risk</span>
         </div>
+
+        {summary.skippedRows > 0 && (
+          <small className="map-footnote">
+            {formatNumber(summary.skippedRows)} shipment rows skipped because the
+            destination port has no map coordinates.
+          </small>
+        )}
       </div>
     </section>
   );
+}
+
+function getRiskBand(riskScore) {
+  if (riskScore >= 18) {
+    return "high";
+  }
+
+  if (riskScore >= 12) {
+    return "medium";
+  }
+
+  return "low";
 }
 
 export default RiskMapPage;
