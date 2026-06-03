@@ -446,7 +446,9 @@ function buildDashboardSummary() {
   const knnCheck = readJsonFile("knn_check_metrics.json");
   const knnLatest = readJsonFile("knn_metrics.json");
   const logisticRegression = readJsonFile("logistic_regression_metrics.json");
-
+  const randomForest = readJsonFile("random_forest_metrics.json");
+  const neuralNetwork = readJsonFile("neural_network_metrics.json");
+  const decisionTree = readJsonFile("decision_tree_metrics.json");
   const highRiskShare =
     dataset.risk_distribution.find((item) => item.label === "HIGH RISK")
       ?.percentage ?? 0;
@@ -472,8 +474,8 @@ function buildDashboardSummary() {
       },
       {
         label: "Completed Models",
-        value: "2",
-        note: "KNN and Logistic Regression",
+        value: "4",
+        note: "Logistic Regression, Random Forest, Neural Network and Decision Tree",
       },
       {
         label: "High Risk Share",
@@ -499,6 +501,9 @@ function buildDashboardSummary() {
       knn_check: knnCheck,
       knn_latest: knnLatest,
       logistic_regression: logisticRegression,
+      neural_network: neuralNetwork,
+      random_forest: randomForest,
+      decision_tree: decisionTree,
     },
   };
 }
@@ -547,6 +552,55 @@ function buildRandomForestData() {
       "density_kg_m3",
       "value_per_kg",
       "value_per_m3",
+    ],
+  };
+}
+
+function buildNeuralNetworkData() {
+  const metrics = readJsonFile("neural_network_metrics.json");
+
+  return {
+    metrics,
+    report: readTextFile("neural_network_report.txt"),
+    tuning_results: readJsonFile("neural_network_tuning_results.json"),
+    features_used: metrics?.features_used ?? [
+      "price_usd",
+      "weight_kg",
+      "length_m",
+      "width_m",
+      "height_m",
+      "volume_m3",
+      "max_dimension_m",
+      "dimension_sum_m",
+      "density_kg_m3",
+      "value_per_kg",
+      "value_per_m3",
+      "tax",
+      "tax_ratio",
+    ],
+  };
+}
+
+function buildDecisionTreeData() {
+  const metrics = readJsonFile("decision_tree_metrics.json");
+
+  return {
+    metrics,
+    report: readTextFile("decision_tree_report.txt"),
+    features_used: metrics?.features_used ?? [
+      "price_usd",
+      "weight_kg",
+      "length_m",
+      "width_m",
+      "height_m",
+      "volume_m3",
+      "max_dimension_m",
+      "dimension_sum_m",
+      "density_kg_m3",
+      "value_per_kg",
+      "value_per_m3",
+      "tax",
+      "tax_ratio",
     ],
   };
 }
@@ -700,6 +754,8 @@ module.exports = {
   buildKnnModelData,
   buildLogisticRegressionData,
   buildRandomForestData,
+  buildDecisionTreeData,
+  buildNeuralNetworkData,
   buildModelComparisonMetrics,
   buildPredictionLabContext,
   buildDebugPaths,

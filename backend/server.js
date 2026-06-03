@@ -7,6 +7,8 @@ const {
   buildKnnModelData,
   buildLogisticRegressionData,
   buildRandomForestData,
+  buildDecisionTreeData,
+  buildNeuralNetworkData,
   buildModelComparisonMetrics,
   buildPredictionLabContext,
   buildDebugPaths,
@@ -501,6 +503,30 @@ app.get("/api/models/random-forest", requireAuth, (req, res) => {
     console.error("Error loading Random Forest model data:", error);
     res.status(500).json({
       error: "Unable to load Random Forest model data",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/models/decision-tree", requireAuth, (req, res) => {
+  try {
+    res.json(buildDecisionTreeData());
+  } catch (error) {
+    console.error("Error loading Decision Tree model data:", error);
+    res.status(500).json({
+      error: "Unable to load Decision Tree model data",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/models/neural-network", requireAuth, (req, res) => {
+  try {
+    res.json(buildNeuralNetworkData());
+  } catch (error) {
+    console.error("Error loading Neural Network model data:", error);
+    res.status(500).json({
+      error: "Unable to load Neural Network model data",
       details: error.message,
     });
   }

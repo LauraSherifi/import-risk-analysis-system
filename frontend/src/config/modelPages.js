@@ -13,13 +13,13 @@ export const modelPages = [
     status: "ready",
     visible: true,
   },
-  {
-    id: "decision-tree",
-    label: "Decision Tree",
-    path: "/models/decision-tree",
-    status: "not-ready",
-    visible: false,
-  },
+{
+  id: "decision-tree",
+  label: "Decision Tree",
+  path: "/models/decision-tree",
+  status: "ready",
+  visible: true,
+},
   {
   id: "random-forest",
   label: "Random Forest",
@@ -31,7 +31,7 @@ export const modelPages = [
   id: "neural-network",
   label: "Neural Network",
   path: "/models/neural-network",
-  status: "placeholder",
+  status: "ready",
   visible: true,
 },
 ];

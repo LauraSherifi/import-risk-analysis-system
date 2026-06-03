@@ -1,61 +1,178 @@
+import { useEffect, useState } from "react";
 import ProgressBar from "../components/ProgressBar";
 import StatCard from "../components/StatCard";
+import { getAuthHeaders } from "../auth";
 
-const cards = [
-  {
-    label: "Algorithm",
-    value: "Neural Network",
-    note: "Placeholder model page",
-  },
-  {
-    label: "Status",
-    value: "Pending",
-    note: "Waiting for final validation",
-  },
-  {
-    label: "Backend",
-    value: "Not linked",
-    note: "No API connection yet",
-  },
-  {
-    label: "Next Step",
-    value: "Review",
-    note: "Connect after algorithm is finalized",
-  },
-];
+function toPercentNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Number((number * 100).toFixed(2)) : 0;
+}
 
-const plannedMetrics = [
-  { label: "Accuracy", value: 0 },
-  { label: "Precision", value: 0 },
-  { label: "Recall", value: 0 },
-  { label: "F1 Score", value: 0 },
-];
+function formatCount(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toLocaleString() : "—";
+}
 
-const plannedFeatures = [
-  "price_usd",
-  "weight_kg",
-  "volume_m3",
-  "density_kg_m3",
-  "value_per_kg",
-  "value_per_m3",
-  "tax",
-  "tax_ratio",
-];
+function normalizeFeatureName(value) {
+  return String(value || "").replaceAll("_", " ");
+}
+
+function getMatrix(metrics) {
+  const confusionMatrix = metrics?.confusion_matrix;
+
+  if (Array.isArray(confusionMatrix)) {
+    return confusionMatrix;
+  }
+
+  if (Array.isArray(confusionMatrix?.matrix)) {
+    return confusionMatrix.matrix;
+  }
+
+  return [
+    [0, 0],
+    [0, 0],
+  ];
+}
 
 function NeuralNetworkModelPage() {
+  const [modelData, setModelData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadModelData() {
+      try {
+        const response = await fetch("/api/models/neural-network", {
+          headers: getAuthHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Neural Network data could not be loaded.");
+        }
+
+        const data = await response.json();
+        setModelData(data);
+      } catch (requestError) {
+        setError(requestError.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadModelData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="dashboard-page">
+        <section className="panel">
+          <h3>Loading Neural Network model...</h3>
+          <p>Reading Neural Network metrics from the backend.</p>
+        </section>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-page">
+        <section className="panel">
+          <h3>Neural Network connection error</h3>
+          <p>{error}</p>
+        </section>
+      </div>
+    );
+  }
+
+  const metrics = modelData?.metrics ?? null;
+
+  if (!metrics) {
+    return (
+      <div className="dashboard-page">
+        <section className="panel">
+          <h3>Neural Network metrics not found</h3>
+          <p>
+            The backend is working, but no neural_network_metrics.json file was
+            found in ml/models.
+          </p>
+        </section>
+      </div>
+    );
+  }
+
+  const accuracy = toPercentNumber(metrics.accuracy);
+  const f1Score = toPercentNumber(metrics.f1_score);
+  const matrix = getMatrix(metrics);
+  const featuresUsed = modelData?.features_used ?? metrics.features_used ?? [];
+  const tuningResults = modelData?.tuning_results ?? [];
+
+  const cards = [
+    {
+      label: "Algorithm",
+      value: "Neural Network",
+      note: "Dense neural classifier",
+    },
+    {
+      label: "Best Architecture",
+      value: metrics.name || "—",
+      note: "Selected from tuning results",
+    },
+    {
+      label: "Accuracy",
+      value: `${accuracy.toFixed(2)}%`,
+      note: "Final evaluation score",
+    },
+    {
+      label: "F1 Score",
+      value: `${f1Score.toFixed(2)}%`,
+      note: "High-risk class balance",
+    },
+  ];
+
+  const metricBars = [
+    { label: "Accuracy", value: accuracy },
+    { label: "F1 Score", value: f1Score },
+  ];
+
+  const confusionMatrix = [
+    {
+      actual: "LOW RISK",
+      predicted: "LOW RISK",
+      value: formatCount(matrix?.[0]?.[0]),
+      type: "correct",
+    },
+    {
+      actual: "LOW RISK",
+      predicted: "HIGH RISK",
+      value: formatCount(matrix?.[0]?.[1]),
+      type: "error",
+    },
+    {
+      actual: "HIGH RISK",
+      predicted: "LOW RISK",
+      value: formatCount(matrix?.[1]?.[0]),
+      type: "error",
+    },
+    {
+      actual: "HIGH RISK",
+      predicted: "HIGH RISK",
+      value: formatCount(matrix?.[1]?.[1]),
+      type: "correct",
+    },
+  ];
+
   return (
     <div className="dashboard-page">
       <header className="page-header">
         <div>
           <h1>Neural Network Dashboard</h1>
           <p>
-            Placeholder page for the Neural Network model. This page is not
-            connected to backend data yet and can be linked once the algorithm
-            is finalized.
+            Performance summary for the Neural Network model connected to live
+            backend metrics.
           </p>
         </div>
 
-        <div className="status-pill">Placeholder</div>
+        <div className="status-pill">Live Backend Data</div>
       </header>
 
       <section className="cards">
@@ -73,16 +190,13 @@ function NeuralNetworkModelPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h3>Planned Model Metrics</h3>
-              <p>
-                These metric placeholders will be replaced with backend values
-                after the Neural Network model is approved.
-              </p>
+              <h3>Neural Network Metrics</h3>
+              <p>Evaluation results for the selected neural architecture.</p>
             </div>
           </div>
 
           <div className="metric-chart">
-            {plannedMetrics.map((metric) => (
+            {metricBars.map((metric) => (
               <ProgressBar
                 key={metric.label}
                 label={metric.label}
@@ -95,18 +209,17 @@ function NeuralNetworkModelPage() {
         <div className="panel insight-panel">
           <div className="panel-header">
             <div>
-              <h3>Placeholder Interpretation</h3>
-              <p>Current role of this page in the interface.</p>
+              <h3>Model Interpretation</h3>
+              <p>How this Neural Network result should be explained.</p>
             </div>
           </div>
 
           <div className="highlight-insight">
-            <span>Temporary page</span>
-            <strong>Not connected</strong>
+            <span>Best architecture</span>
+            <strong>{metrics.name || "—"}</strong>
             <p>
-              This page is prepared only as a visual placeholder. It does not
-              read from the backend and should not be presented as a completed
-              model until the Neural Network algorithm is validated.
+              The Neural Network uses scaled numerical shipment features and
+              selects the best architecture based on F1 Score and Accuracy.
             </p>
           </div>
         </div>
@@ -116,37 +229,10 @@ function NeuralNetworkModelPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h3>Planned Workflow</h3>
-              <p>How this model page can be completed later.</p>
-            </div>
-          </div>
-
-          <div className="mini-pipeline">
-            <span>Train Model</span>
-            <i />
-            <span>Validate Metrics</span>
-            <i />
-            <span>Add Backend API</span>
-            <i />
-            <span>Connect Page</span>
-          </div>
-
-          <div className="model-notes">
-            <p>
-              Once the final Neural Network metrics are approved, this page can
-              be updated to fetch live results from the backend, similar to KNN
-              and Logistic Regression.
-            </p>
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <h3>Future Confusion Matrix</h3>
+              <h3>Confusion Matrix</h3>
               <p>
-                This section is reserved for the final Neural Network confusion
-                matrix.
+                Correct and incorrect predictions by actual and predicted risk
+                class.
               </p>
             </div>
           </div>
@@ -157,24 +243,111 @@ function NeuralNetworkModelPage() {
             <div className="matrix-axis">Predicted High</div>
 
             <div className="matrix-axis">Actual Low</div>
-            <div className="matrix-cell warning">
-              <strong>—</strong>
-              <span>Pending</span>
-            </div>
-            <div className="matrix-cell warning">
-              <strong>—</strong>
-              <span>Pending</span>
-            </div>
+            {confusionMatrix.slice(0, 2).map((cell) => (
+              <div
+                className={`matrix-cell ${cell.type}`}
+                key={`${cell.actual}-${cell.predicted}`}
+              >
+                <strong>{cell.value}</strong>
+                <span>{cell.predicted}</span>
+              </div>
+            ))}
 
             <div className="matrix-axis">Actual High</div>
-            <div className="matrix-cell warning">
-              <strong>—</strong>
-              <span>Pending</span>
+            {confusionMatrix.slice(2, 4).map((cell) => (
+              <div
+                className={`matrix-cell ${cell.type}`}
+                key={`${cell.actual}-${cell.predicted}`}
+              >
+                <strong>{cell.value}</strong>
+                <span>{cell.predicted}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h3>Training Configuration</h3>
+              <p>Key parameters of the selected Neural Network model.</p>
             </div>
-            <div className="matrix-cell warning">
-              <strong>—</strong>
-              <span>Pending</span>
+          </div>
+
+          <div className="quality-dashboard-grid">
+            <div>
+              <span>Layers</span>
+              <strong>{Array.isArray(metrics.layers) ? metrics.layers.join(" / ") : "—"}</strong>
             </div>
+            <div>
+              <span>Dropout</span>
+              <strong>{metrics.dropout ?? "—"}</strong>
+            </div>
+            <div>
+              <span>Learning Rate</span>
+              <strong>{metrics.learning_rate ?? "—"}</strong>
+            </div>
+            <div>
+              <span>Epochs Ran</span>
+              <strong>{metrics.epochs_ran ?? "—"}</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="dashboard-grid">
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h3>Architecture Comparison</h3>
+              <p>Neural Network architectures tested during training.</p>
+            </div>
+          </div>
+
+          <div className="metric-chart">
+            {tuningResults.map((item) => (
+              <div key={item.name} className="model-notes">
+                <p>
+                  <strong>{item.name}</strong>
+                </p>
+
+                <ProgressBar
+                  label="Accuracy"
+                  value={toPercentNumber(item.accuracy)}
+                />
+                <ProgressBar
+                  label="F1 Score"
+                  value={toPercentNumber(item.f1_score)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h3>Model Role</h3>
+              <p>How Neural Network should be positioned in the project.</p>
+            </div>
+          </div>
+
+          <div className="mini-pipeline">
+            <span>Clean Data</span>
+            <i />
+            <span>Scale Features</span>
+            <i />
+            <span>Neural Network</span>
+            <i />
+            <span>Evaluation</span>
+          </div>
+
+          <div className="model-notes">
+            <p>
+              Neural Network is useful for learning non-linear relationships
+              between shipment features. It is less interpretable than Decision
+              Tree, but it can capture more complex patterns.
+            </p>
           </div>
         </div>
       </section>
@@ -182,39 +355,17 @@ function NeuralNetworkModelPage() {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h3>Potential Features</h3>
-            <p>
-              Candidate input features that may be used once the Neural Network
-              model is finalized.
-            </p>
+            <h3>Features Used by Neural Network</h3>
+            <p>Input variables included in Neural Network training.</p>
           </div>
         </div>
 
         <div className="feature-chip-grid">
-          {plannedFeatures.map((feature) => (
+          {featuresUsed.map((feature) => (
             <span className="feature-chip" key={feature}>
-              {feature.replaceAll("_", " ")}
+              {normalizeFeatureName(feature)}
             </span>
           ))}
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <h3>Decision Note</h3>
-            <p>What to do with this page later.</p>
-          </div>
-        </div>
-
-        <div className="highlight-insight">
-          <span>Flexible implementation</span>
-          <strong>Keep or remove</strong>
-          <p>
-            If the Neural Network model is accepted, this page can be connected
-            to the backend. If the model is not included in the final version,
-            this page can simply be removed from the route and sidebar.
-          </p>
         </div>
       </section>
     </div>
