@@ -3,24 +3,29 @@ import json
 
 import joblib
 import pandas as pd
+from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
     confusion_matrix,
+    f1_score,
     precision_score,
     recall_score,
-    f1_score,
 )
-from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_val_score, train_test_split
+from sklearn.model_selection import (
+    GridSearchCV,
+    StratifiedKFold,
+    cross_val_score,
+    train_test_split,
+)
 from sklearn.pipeline import Pipeline
-from sklearn.dummy import DummyClassifier
 from sklearn.preprocessing import StandardScaler
 
 
-BASE_DIR = Path(__file__).resolve().parent
-DATA_PATH = BASE_DIR / "data" / "processed" / "cleaned_dataset.csv"
-MODELS_DIR = BASE_DIR / "models"
+ML_DIR = Path(__file__).resolve().parents[1]
+DATA_PATH = ML_DIR / "data" / "processed" / "cleaned_dataset.csv"
+MODELS_DIR = ML_DIR / "models"
 MODEL_PATH = MODELS_DIR / "import_risk_logistic_regression.joblib"
 METRICS_PATH = MODELS_DIR / "logistic_regression_metrics.json"
 REPORT_PATH = MODELS_DIR / "logistic_regression_report.txt"

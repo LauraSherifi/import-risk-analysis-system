@@ -17,8 +17,8 @@ function normalizeFeatureName(value) {
   return String(value || "").replaceAll("_", " ");
 }
 
-function getMatrix(model) {
-  const confusionMatrix = model?.confusion_matrix;
+function getMatrix(metrics) {
+  const confusionMatrix = metrics?.confusion_matrix;
 
   if (Array.isArray(confusionMatrix)) {
     return confusionMatrix;
@@ -34,7 +34,7 @@ function getMatrix(model) {
   ];
 }
 
-function LogisticRegressionModelPage() {
+function NeuralNetworkModelPage() {
   const [modelData, setModelData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,12 +42,12 @@ function LogisticRegressionModelPage() {
   useEffect(() => {
     async function loadModelData() {
       try {
-        const response = await fetch("/api/models/logistic-regression", {
-             headers: getAuthHeaders(),
-             });
+        const response = await fetch("/api/models/neural-network", {
+          headers: getAuthHeaders(),
+        });
 
         if (!response.ok) {
-          throw new Error("Logistic Regression data could not be loaded.");
+          throw new Error("Neural Network data could not be loaded.");
         }
 
         const data = await response.json();
@@ -66,8 +66,8 @@ function LogisticRegressionModelPage() {
     return (
       <div className="dashboard-page">
         <section className="panel">
-          <h3>Loading Logistic Regression model...</h3>
-          <p>Reading model metrics from the backend.</p>
+          <h3>Loading Neural Network model...</h3>
+          <p>Reading Neural Network metrics from the backend.</p>
         </section>
       </div>
     );
@@ -77,7 +77,7 @@ function LogisticRegressionModelPage() {
     return (
       <div className="dashboard-page">
         <section className="panel">
-          <h3>Logistic Regression connection error</h3>
+          <h3>Neural Network connection error</h3>
           <p>{error}</p>
         </section>
       </div>
@@ -90,9 +90,9 @@ function LogisticRegressionModelPage() {
     return (
       <div className="dashboard-page">
         <section className="panel">
-          <h3>Logistic Regression metrics not found</h3>
+          <h3>Neural Network metrics not found</h3>
           <p>
-            The backend is working, but no Logistic Regression metrics file was
+            The backend is working, but no neural_network_metrics.json file was
             found in ml/models.
           </p>
         </section>
@@ -101,46 +101,37 @@ function LogisticRegressionModelPage() {
   }
 
   const accuracy = toPercentNumber(metrics.accuracy);
-  const precision = toPercentNumber(metrics.precision);
-  const recall = toPercentNumber(metrics.recall);
   const f1Score = toPercentNumber(metrics.f1_score);
-  const baselineAccuracy = toPercentNumber(metrics.baseline_accuracy);
-  const cvF1Mean = toPercentNumber(metrics.cv_f1_mean);
-  const cvF1Std = toPercentNumber(metrics.cv_f1_std);
-
   const matrix = getMatrix(metrics);
-  const featuresUsed = modelData?.features_used ?? [];
+  const featuresUsed = modelData?.features_used ?? metrics.features_used ?? [];
+  const tuningResults = modelData?.tuning_results ?? [];
 
   const cards = [
     {
       label: "Algorithm",
-      value: "Logistic Regression",
-      note: "Completed benchmark classifier",
+      value: "Neural Network",
+      note: "Dense neural classifier",
+    },
+    {
+      label: "Best Architecture",
+      value: metrics.name || "—",
+      note: "Selected from tuning results",
     },
     {
       label: "Accuracy",
       value: `${accuracy.toFixed(2)}%`,
-      note: "Overall model performance",
+      note: "Final evaluation score",
     },
     {
       label: "F1 Score",
       value: `${f1Score.toFixed(2)}%`,
-      note: "High-risk class performance",
-    },
-    {
-      label: "Baseline Accuracy",
-      value: `${baselineAccuracy.toFixed(2)}%`,
-      note: "Majority-class benchmark",
+      note: "High-risk class balance",
     },
   ];
 
   const metricBars = [
     { label: "Accuracy", value: accuracy },
-    { label: "Precision", value: precision },
-    { label: "Recall", value: recall },
     { label: "F1 Score", value: f1Score },
-    { label: "Baseline Accuracy", value: baselineAccuracy },
-    { label: "CV F1 Mean", value: cvF1Mean },
   ];
 
   const confusionMatrix = [
@@ -170,16 +161,14 @@ function LogisticRegressionModelPage() {
     },
   ];
 
-  const bestParams = metrics.best_params ?? {};
-
   return (
     <div className="dashboard-page">
       <header className="page-header">
         <div>
-          <h1>Logistic Regression Dashboard</h1>
+          <h1>Neural Network Dashboard</h1>
           <p>
-            Performance summary for the completed Logistic Regression shipment
-            risk classifier, loaded directly from backend model metrics.
+            Performance summary for the Neural Network model connected to live
+            backend metrics.
           </p>
         </div>
 
@@ -201,8 +190,8 @@ function LogisticRegressionModelPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h3>Logistic Regression Metrics</h3>
-              <p>Main evaluation results from the backend metrics file.</p>
+              <h3>Neural Network Metrics</h3>
+              <p>Evaluation results for the selected neural architecture.</p>
             </div>
           </div>
 
@@ -221,18 +210,16 @@ function LogisticRegressionModelPage() {
           <div className="panel-header">
             <div>
               <h3>Model Interpretation</h3>
-              <p>How this model should be read in the final interface.</p>
+              <p>How this Neural Network result should be explained.</p>
             </div>
           </div>
 
           <div className="highlight-insight">
-            <span>Benchmark model</span>
-            <strong>{accuracy.toFixed(2)}%</strong>
+            <span>Best architecture</span>
+            <strong>{metrics.name || "—"}</strong>
             <p>
-              Logistic Regression is useful as a transparent and interpretable
-              benchmark. However, its accuracy is below the majority-class
-              baseline, meaning it should not be presented as the strongest
-              operational model.
+              The Neural Network uses scaled numerical shipment features and
+              selects the best architecture based on F1 Score and Accuracy.
             </p>
           </div>
         </div>
@@ -282,38 +269,28 @@ function LogisticRegressionModelPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h3>Benchmark Comparison</h3>
-              <p>Comparison against the simple majority-class baseline.</p>
+              <h3>Training Configuration</h3>
+              <p>Key parameters of the selected Neural Network model.</p>
             </div>
           </div>
 
           <div className="quality-dashboard-grid">
             <div>
-              <span>Model Accuracy</span>
-              <strong>{accuracy.toFixed(2)}%</strong>
+              <span>Layers</span>
+              <strong>{Array.isArray(metrics.layers) ? metrics.layers.join(" / ") : "—"}</strong>
             </div>
             <div>
-              <span>Baseline Accuracy</span>
-              <strong>{baselineAccuracy.toFixed(2)}%</strong>
+              <span>Dropout</span>
+              <strong>{metrics.dropout ?? "—"}</strong>
             </div>
             <div>
-              <span>CV F1 Mean</span>
-              <strong>{cvF1Mean.toFixed(2)}%</strong>
+              <span>Learning Rate</span>
+              <strong>{metrics.learning_rate ?? "—"}</strong>
             </div>
             <div>
-              <span>CV F1 Std</span>
-              <strong>{cvF1Std.toFixed(2)}%</strong>
+              <span>Epochs Ran</span>
+              <strong>{metrics.epochs_ran ?? "—"}</strong>
             </div>
-          </div>
-
-          <div className="highlight-insight">
-            <span>Key reading</span>
-            <strong>Below baseline</strong>
-            <p>
-              The majority-class baseline is higher than the Logistic Regression
-              accuracy, so this model is best used for methodological comparison
-              and interpretability, not as the final best model.
-            </p>
           </div>
         </div>
       </section>
@@ -322,28 +299,28 @@ function LogisticRegressionModelPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h3>Best Parameters</h3>
-              <p>Hyperparameters selected during model training.</p>
+              <h3>Architecture Comparison</h3>
+              <p>Neural Network architectures tested during training.</p>
             </div>
           </div>
 
-          <div className="quality-dashboard-grid">
-            <div>
-              <span>C</span>
-              <strong>{bestParams.classifier__C ?? "—"}</strong>
-            </div>
-            <div>
-              <span>Class Weight</span>
-              <strong>{bestParams.classifier__class_weight ?? "—"}</strong>
-            </div>
-            <div>
-              <span>Solver</span>
-              <strong>{bestParams.classifier__solver ?? "—"}</strong>
-            </div>
-            <div>
-              <span>Model Type</span>
-              <strong>Linear</strong>
-            </div>
+          <div className="metric-chart">
+            {tuningResults.map((item) => (
+              <div key={item.name} className="model-notes">
+                <p>
+                  <strong>{item.name}</strong>
+                </p>
+
+                <ProgressBar
+                  label="Accuracy"
+                  value={toPercentNumber(item.accuracy)}
+                />
+                <ProgressBar
+                  label="F1 Score"
+                  value={toPercentNumber(item.f1_score)}
+                />
+              </div>
+            ))}
           </div>
         </div>
 
@@ -351,26 +328,25 @@ function LogisticRegressionModelPage() {
           <div className="panel-header">
             <div>
               <h3>Model Role</h3>
-              <p>Why Logistic Regression is still useful in the project.</p>
+              <p>How Neural Network should be positioned in the project.</p>
             </div>
           </div>
 
           <div className="mini-pipeline">
             <span>Clean Data</span>
             <i />
-            <span>Feature Set</span>
+            <span>Scale Features</span>
             <i />
-            <span>Logistic Model</span>
+            <span>Neural Network</span>
             <i />
-            <span>Benchmark</span>
+            <span>Evaluation</span>
           </div>
 
           <div className="model-notes">
             <p>
-              Logistic Regression provides a simple, explainable comparison
-              point against more flexible models. Its weaker performance helps
-              justify why KNN is currently presented as the stronger completed
-              classifier.
+              Neural Network is useful for learning non-linear relationships
+              between shipment features. It is less interpretable than Decision
+              Tree, but it can capture more complex patterns.
             </p>
           </div>
         </div>
@@ -379,11 +355,8 @@ function LogisticRegressionModelPage() {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h3>Features Used by Logistic Regression</h3>
-            <p>
-              Input variables included in the Logistic Regression training and
-              evaluation.
-            </p>
+            <h3>Features Used by Neural Network</h3>
+            <p>Input variables included in Neural Network training.</p>
           </div>
         </div>
 
@@ -399,4 +372,4 @@ function LogisticRegressionModelPage() {
   );
 }
 
-export default LogisticRegressionModelPage;
+export default NeuralNetworkModelPage;

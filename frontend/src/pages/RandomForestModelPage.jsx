@@ -34,7 +34,7 @@ function getMatrix(model) {
   ];
 }
 
-function LogisticRegressionModelPage() {
+function RandomForestModelPage() {
   const [modelData, setModelData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,12 +42,12 @@ function LogisticRegressionModelPage() {
   useEffect(() => {
     async function loadModelData() {
       try {
-        const response = await fetch("/api/models/logistic-regression", {
-             headers: getAuthHeaders(),
-             });
+        const response = await fetch("/api/models/random-forest", {
+          headers: getAuthHeaders(),
+        });
 
         if (!response.ok) {
-          throw new Error("Logistic Regression data could not be loaded.");
+          throw new Error("Random Forest data could not be loaded.");
         }
 
         const data = await response.json();
@@ -66,8 +66,8 @@ function LogisticRegressionModelPage() {
     return (
       <div className="dashboard-page">
         <section className="panel">
-          <h3>Loading Logistic Regression model...</h3>
-          <p>Reading model metrics from the backend.</p>
+          <h3>Loading Random Forest model...</h3>
+          <p>Reading Random Forest metrics from the backend.</p>
         </section>
       </div>
     );
@@ -77,7 +77,7 @@ function LogisticRegressionModelPage() {
     return (
       <div className="dashboard-page">
         <section className="panel">
-          <h3>Logistic Regression connection error</h3>
+          <h3>Random Forest connection error</h3>
           <p>{error}</p>
         </section>
       </div>
@@ -90,10 +90,10 @@ function LogisticRegressionModelPage() {
     return (
       <div className="dashboard-page">
         <section className="panel">
-          <h3>Logistic Regression metrics not found</h3>
+          <h3>Random Forest metrics not found</h3>
           <p>
-            The backend is working, but no Logistic Regression metrics file was
-            found in ml/models.
+            The backend is working, but no Random Forest metrics file was found
+            in ml/models.
           </p>
         </section>
       </div>
@@ -105,22 +105,21 @@ function LogisticRegressionModelPage() {
   const recall = toPercentNumber(metrics.recall);
   const f1Score = toPercentNumber(metrics.f1_score);
   const baselineAccuracy = toPercentNumber(metrics.baseline_accuracy);
-  const cvF1Mean = toPercentNumber(metrics.cv_f1_mean);
-  const cvF1Std = toPercentNumber(metrics.cv_f1_std);
 
   const matrix = getMatrix(metrics);
-  const featuresUsed = modelData?.features_used ?? [];
+  const featuresUsed = modelData?.features_used ?? metrics.features_used ?? [];
+  const featureImportance = metrics.feature_importance ?? [];
 
   const cards = [
     {
       label: "Algorithm",
-      value: "Logistic Regression",
-      note: "Completed benchmark classifier",
+      value: metrics.model || "Random Forest",
+      note: "Tree-based ensemble classifier",
     },
     {
       label: "Accuracy",
       value: `${accuracy.toFixed(2)}%`,
-      note: "Overall model performance",
+      note: "Without tax and tax_ratio",
     },
     {
       label: "F1 Score",
@@ -140,7 +139,6 @@ function LogisticRegressionModelPage() {
     { label: "Recall", value: recall },
     { label: "F1 Score", value: f1Score },
     { label: "Baseline Accuracy", value: baselineAccuracy },
-    { label: "CV F1 Mean", value: cvF1Mean },
   ];
 
   const confusionMatrix = [
@@ -170,16 +168,16 @@ function LogisticRegressionModelPage() {
     },
   ];
 
-  const bestParams = metrics.best_params ?? {};
+  const isBelowBaseline = accuracy < baselineAccuracy;
 
   return (
     <div className="dashboard-page">
       <header className="page-header">
         <div>
-          <h1>Logistic Regression Dashboard</h1>
+          <h1>Random Forest Dashboard</h1>
           <p>
-            Performance summary for the completed Logistic Regression shipment
-            risk classifier, loaded directly from backend model metrics.
+            Performance summary for the Random Forest classifier trained without
+            tax and tax_ratio, to avoid tax-related target leakage.
           </p>
         </div>
 
@@ -201,8 +199,11 @@ function LogisticRegressionModelPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h3>Logistic Regression Metrics</h3>
-              <p>Main evaluation results from the backend metrics file.</p>
+              <h3>Random Forest Metrics</h3>
+              <p>
+                Evaluation results after removing tax and tax_ratio from the
+                model features.
+              </p>
             </div>
           </div>
 
@@ -221,18 +222,18 @@ function LogisticRegressionModelPage() {
           <div className="panel-header">
             <div>
               <h3>Model Interpretation</h3>
-              <p>How this model should be read in the final interface.</p>
+              <p>How this Random Forest result should be explained.</p>
             </div>
           </div>
 
           <div className="highlight-insight">
-            <span>Benchmark model</span>
-            <strong>{accuracy.toFixed(2)}%</strong>
+            <span>Leakage-controlled model</span>
+            <strong>{isBelowBaseline ? "Below baseline" : "Above baseline"}</strong>
             <p>
-              Logistic Regression is useful as a transparent and interpretable
-              benchmark. However, its accuracy is below the majority-class
-              baseline, meaning it should not be presented as the strongest
-              operational model.
+              This Random Forest version excludes tax and tax_ratio. The result
+              is lower than the majority-class baseline, which confirms that the
+              earlier perfect performance was mainly driven by tax-related
+              leakage, not by independent predictive patterns.
             </p>
           </div>
         </div>
@@ -282,37 +283,37 @@ function LogisticRegressionModelPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h3>Benchmark Comparison</h3>
-              <p>Comparison against the simple majority-class baseline.</p>
+              <h3>Validation Reading</h3>
+              <p>Why this result is useful even if the score is lower.</p>
             </div>
           </div>
 
           <div className="quality-dashboard-grid">
             <div>
-              <span>Model Accuracy</span>
-              <strong>{accuracy.toFixed(2)}%</strong>
+              <span>Rows Used</span>
+              <strong>{formatCount(metrics.rows_used)}</strong>
             </div>
             <div>
-              <span>Baseline Accuracy</span>
-              <strong>{baselineAccuracy.toFixed(2)}%</strong>
+              <span>Test Rows</span>
+              <strong>{formatCount(metrics.test_rows)}</strong>
             </div>
             <div>
-              <span>CV F1 Mean</span>
-              <strong>{cvF1Mean.toFixed(2)}%</strong>
+              <span>Features</span>
+              <strong>{featuresUsed.length}</strong>
             </div>
             <div>
-              <span>CV F1 Std</span>
-              <strong>{cvF1Std.toFixed(2)}%</strong>
+              <span>Tax Features</span>
+              <strong>Excluded</strong>
             </div>
           </div>
 
           <div className="highlight-insight">
-            <span>Key reading</span>
-            <strong>Below baseline</strong>
+            <span>Key conclusion</span>
+            <strong>No leakage features</strong>
             <p>
-              The majority-class baseline is higher than the Logistic Regression
-              accuracy, so this model is best used for methodological comparison
-              and interpretability, not as the final best model.
+              Removing tax and tax_ratio makes the model more methodologically
+              honest. It shows that the remaining shipment and value-density
+              features are not enough to strongly identify HIGH RISK records.
             </p>
           </div>
         </div>
@@ -322,28 +323,21 @@ function LogisticRegressionModelPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h3>Best Parameters</h3>
-              <p>Hyperparameters selected during model training.</p>
+              <h3>Feature Importance</h3>
+              <p>
+                Most influential variables after excluding tax and tax_ratio.
+              </p>
             </div>
           </div>
 
-          <div className="quality-dashboard-grid">
-            <div>
-              <span>C</span>
-              <strong>{bestParams.classifier__C ?? "—"}</strong>
-            </div>
-            <div>
-              <span>Class Weight</span>
-              <strong>{bestParams.classifier__class_weight ?? "—"}</strong>
-            </div>
-            <div>
-              <span>Solver</span>
-              <strong>{bestParams.classifier__solver ?? "—"}</strong>
-            </div>
-            <div>
-              <span>Model Type</span>
-              <strong>Linear</strong>
-            </div>
+          <div className="metric-chart">
+            {featureImportance.map((item) => (
+              <ProgressBar
+                key={item.feature}
+                label={normalizeFeatureName(item.feature)}
+                value={toPercentNumber(item.importance)}
+              />
+            ))}
           </div>
         </div>
 
@@ -351,26 +345,26 @@ function LogisticRegressionModelPage() {
           <div className="panel-header">
             <div>
               <h3>Model Role</h3>
-              <p>Why Logistic Regression is still useful in the project.</p>
+              <p>How Random Forest should be positioned in the project.</p>
             </div>
           </div>
 
           <div className="mini-pipeline">
             <span>Clean Data</span>
             <i />
-            <span>Feature Set</span>
+            <span>No Tax Features</span>
             <i />
-            <span>Logistic Model</span>
+            <span>Random Forest</span>
             <i />
-            <span>Benchmark</span>
+            <span>Validation</span>
           </div>
 
           <div className="model-notes">
             <p>
-              Logistic Regression provides a simple, explainable comparison
-              point against more flexible models. Its weaker performance helps
-              justify why KNN is currently presented as the stronger completed
-              classifier.
+              Random Forest is useful here as a diagnostic model. It helps show
+              whether model performance depends on leakage features. In the
+              final interpretation, this page should emphasize model validity
+              rather than only accuracy.
             </p>
           </div>
         </div>
@@ -379,10 +373,10 @@ function LogisticRegressionModelPage() {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h3>Features Used by Logistic Regression</h3>
+            <h3>Features Used by Random Forest</h3>
             <p>
-              Input variables included in the Logistic Regression training and
-              evaluation.
+              Input variables included in the leakage-controlled Random Forest
+              training and evaluation.
             </p>
           </div>
         </div>
@@ -399,4 +393,4 @@ function LogisticRegressionModelPage() {
   );
 }
 
-export default LogisticRegressionModelPage;
+export default RandomForestModelPage;

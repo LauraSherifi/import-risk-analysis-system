@@ -2,6 +2,24 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
+const {
+  buildDashboardSummary,
+  buildDatasetSummary,
+  buildSampleRows,
+  buildKnnModelData,
+  buildLogisticRegressionData,
+  buildRandomForestData,
+  buildDecisionTreeData,
+  buildNeuralNetworkData,
+  buildModelComparisonMetrics,
+  buildPredictionLabContext,
+  buildDebugPaths,
+  loadDataset,
+} = require("./dataService");
+const {
+  generateAssistantReply,
+  getAssistantConfiguration,
+} = require("./assistantService");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -602,6 +620,67 @@ function buildRiskMapData(filters = {}) {
   };
 }
 
+async function scoreSampleWithMl(sample) {
+  try {
+    const response = await fetch(`${ML_SERVICE_URL}/predict`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        tax: Number(sample.taxUsd ?? 0),
+        tax_ratio: Number(sample.taxRatio ?? 0),
+      }),
+    });
+
+    if (!response.ok) {
+      return {
+        aiPrediction: null,
+        confidence: null,
+        probabilities: null,
+      };
+    }
+
+    const data = await response.json();
+
+    return {
+      aiPrediction: data.prediction ?? null,
+      confidence:
+        data.confidence == null ? null : Number(Number(data.confidence).toFixed(4)),
+      probabilities: data.probabilities ?? null,
+    };
+  } catch {
+    return {
+      aiPrediction: null,
+      confidence: null,
+      probabilities: null,
+    };
+  }
+}
+
+async function attachLiveModelSignals(sampleGroups) {
+  const allSamples = Object.values(sampleGroups).flat();
+  const uniqueSamples = [...new Map(allSamples.map((sample) => [sample.id, sample])).values()];
+  const scoredEntries = await Promise.all(
+    uniqueSamples.map(async (sample) => [sample.id, await scoreSampleWithMl(sample)])
+  );
+  const scoreById = new Map(scoredEntries);
+
+  return Object.fromEntries(
+    Object.entries(sampleGroups).map(([groupName, samples]) => [
+      groupName,
+      samples.map((sample) => ({
+        ...sample,
+        ...(scoreById.get(sample.id) || {
+          aiPrediction: null,
+          confidence: null,
+          probabilities: null,
+        }),
+      })),
+    ])
+  );
+}
+
 app.get("/", (req, res) => {
   res.json({
     message: "Import Risk Analysis backend is running.",
@@ -752,6 +831,161 @@ app.post("/predict", requireAuth, async (req, res) => {
     console.error("Error during prediction:", error);
     res.status(502).json({
       error: "Failed to reach the ML prediction service",
+    });
+  }
+});
+
+app.get("/api/debug/paths", requireAuth, (req, res) => {
+  res.json(buildDebugPaths());
+});
+
+app.get("/api/dashboard/summary", requireAuth, (req, res) => {
+  try {
+    res.json(buildDashboardSummary());
+  } catch (error) {
+    console.error("Error building dashboard summary:", error);
+    res.status(500).json({
+      error: "Unable to build dashboard summary",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/dataset/summary", requireAuth, (req, res) => {
+  try {
+    res.json(buildDatasetSummary());
+  } catch (error) {
+    console.error("Error building dataset summary:", error);
+    res.status(500).json({
+      error: "Unable to build dataset summary",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/dataset/sample", requireAuth, (req, res) => {
+  try {
+    const { rows } = loadDataset();
+    const limit = Number(req.query.limit || 20);
+
+    res.json({
+      total: rows.length,
+      items: buildSampleRows(rows, limit),
+    });
+  } catch (error) {
+    console.error("Error loading dataset sample:", error);
+    res.status(500).json({
+      error: "Unable to load dataset sample",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/models/knn", requireAuth, (req, res) => {
+  try {
+    res.json(buildKnnModelData());
+  } catch (error) {
+    console.error("Error loading KNN model data:", error);
+    res.status(500).json({
+      error: "Unable to load KNN model data",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/models/logistic-regression", requireAuth, (req, res) => {
+  try {
+    res.json(buildLogisticRegressionData());
+  } catch (error) {
+    console.error("Error loading Logistic Regression model data:", error);
+    res.status(500).json({
+      error: "Unable to load Logistic Regression model data",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/models/random-forest", requireAuth, (req, res) => {
+  try {
+    res.json(buildRandomForestData());
+  } catch (error) {
+    console.error("Error loading Random Forest model data:", error);
+    res.status(500).json({
+      error: "Unable to load Random Forest model data",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/models/decision-tree", requireAuth, (req, res) => {
+  try {
+    res.json(buildDecisionTreeData());
+  } catch (error) {
+    console.error("Error loading Decision Tree model data:", error);
+    res.status(500).json({
+      error: "Unable to load Decision Tree model data",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/models/neural-network", requireAuth, (req, res) => {
+  try {
+    res.json(buildNeuralNetworkData());
+  } catch (error) {
+    console.error("Error loading Neural Network model data:", error);
+    res.status(500).json({
+      error: "Unable to load Neural Network model data",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/labs/context", requireAuth, async (req, res) => {
+  try {
+    const predictionLabDataset = buildPredictionLabContext();
+    const scoredSamples = await attachLiveModelSignals({
+      featuredSamples: predictionLabDataset.featuredSamples,
+      comparisonSamples: predictionLabDataset.comparisonSamples,
+      labSamples: predictionLabDataset.labSamples,
+    });
+
+    res.json({
+      predictionLabDataset: {
+        ...predictionLabDataset,
+        ...scoredSamples,
+      },
+      algorithmMetrics: buildModelComparisonMetrics(),
+    });
+  } catch (error) {
+    console.error("Error building lab context:", error);
+    res.status(500).json({
+      error: "Unable to build lab context",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/assistant/config", requireAuth, (req, res) => {
+  res.json(getAssistantConfiguration());
+});
+
+app.post("/api/assistant/chat", requireAuth, async (req, res) => {
+  try {
+    const reply = await generateAssistantReply({
+      route: req.body?.route,
+      question: req.body?.question,
+      history: Array.isArray(req.body?.history) ? req.body.history : [],
+      predictionHistory,
+      historySummary: buildHistorySummary(),
+    });
+
+    res.json(reply);
+  } catch (error) {
+    console.error("Error generating assistant reply:", error);
+    res.status(error.statusCode || 500).json({
+      error: error.message || "Assistant reply failed",
+      details: error.details || null,
     });
   }
 });

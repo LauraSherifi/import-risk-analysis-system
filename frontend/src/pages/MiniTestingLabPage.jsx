@@ -1,55 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { predictionLabDataset } from "../data/predictionLabData";
-
-const shipmentSignals = [
-  ...predictionLabDataset.featuredSamples,
-  ...predictionLabDataset.comparisonSamples,
-];
-
-const datasetGameSamples = predictionLabDataset.labSamples;
-
-const algorithmMetrics = [
-  {
-    id: "accuracy",
-    title: "Accuracy",
-    knn: 98.58,
-    logistic: 49.92,
-    description:
-      "KNN correctly classifies almost all held-out shipments, while Logistic Regression lands close to a coin-flip result on this dataset.",
-    recommendation:
-      "This is why the live prediction experience is better aligned with KNN in the current project.",
-  },
-  {
-    id: "f1",
-    title: "F1 Score",
-    knn: 97.18,
-    logistic: 22.88,
-    description:
-      "The balanced quality score is dramatically stronger for KNN, especially important when high-risk cases matter most.",
-    recommendation:
-      "KNN keeps both precision and recall in a usable range, while Logistic Regression loses too much balance.",
-  },
-  {
-    id: "precision",
-    title: "Precision",
-    knn: 95.66,
-    logistic: 14.86,
-    description:
-      "When Logistic Regression predicts HIGH RISK, it is wrong far more often than KNN on the saved evaluation artifacts.",
-    recommendation:
-      "KNN is much more trustworthy when flagging suspicious shipments.",
-  },
-  {
-    id: "recall",
-    title: "Recall",
-    knn: 94.75,
-    logistic: 49.75,
-    description:
-      "KNN catches almost all real high-risk shipments in the test split, while Logistic Regression only recovers about half of them.",
-    recommendation:
-      "If the goal is to surface suspicious imports reliably, KNN stays far ahead.",
-  },
-];
+import { useLabContext } from "../hooks/useLabContext";
 
 const gamePlaceholders = [
   {
@@ -165,53 +115,58 @@ const shipmentSpotDifficulties = {
   hard: { label: "Hard", time: 18, cards: 4 },
 };
 
-const getPortActivityWeight = (destinationPort) => {
+const getPortActivityWeight = (destinationPort, predictionLabDataset) => {
   const topPort = predictionLabDataset.topPorts.find(
     (port) => port.name === destinationPort
   );
+  const maxPortCount = predictionLabDataset.topPorts[0]?.shipmentCount ?? 1;
   if (!topPort) {
     return 18;
   }
 
-  return Math.round(
-    (topPort.shipmentCount / predictionLabDataset.topPorts[0].shipmentCount) * 42
-  );
+  return Math.round((topPort.shipmentCount / maxPortCount) * 42);
 };
 
-const buildDatasetAssessment = (sample) => {
+const buildDatasetAssessment = (sample, predictionLabDataset) => {
   const { low, median, high } = predictionLabDataset.taxRatioQuartiles;
   const ratio = Number(sample.taxRatio);
   const price = Number(sample.priceUsd);
   const weight = Number(sample.weightKg);
   const taxUsd = Number(sample.taxUsd);
+  const modelConfidence =
+    sample.confidence == null ? Number.NaN : Number(sample.confidence);
+  const hasLiveModelScore = Number.isFinite(modelConfidence);
 
-  let fraudProbability = 24;
-  if (ratio <= low) {
-    fraudProbability = 82 + Math.min(15, Math.round(((low - ratio) / low) * 18));
-  } else if (ratio < median) {
-    fraudProbability =
-      46 + Math.round(((median - ratio) / (median - low || 1)) * 18);
-  } else if (ratio < high) {
-    fraudProbability =
-      26 + Math.round(((high - ratio) / (high - median || 1)) * 14);
-  } else {
-    fraudProbability = Math.max(
-      8,
-      22 - Math.round(((ratio - high) / high) * 12)
-    );
-  }
+  let fraudProbability = hasLiveModelScore ? Math.round(modelConfidence * 100) : 24;
 
-  if (price >= predictionLabDataset.averagePriceUsd) {
-    fraudProbability += 6;
-  }
-  if (weight >= predictionLabDataset.averageWeightKg) {
-    fraudProbability += 4;
-  }
-  if (taxUsd >= predictionLabDataset.averageTaxUsd && ratio > low) {
-    fraudProbability -= 4;
-  }
+  if (!hasLiveModelScore) {
+    if (ratio <= low) {
+      fraudProbability = 82 + Math.min(15, Math.round(((low - ratio) / low) * 18));
+    } else if (ratio < median) {
+      fraudProbability =
+        46 + Math.round(((median - ratio) / (median - low || 1)) * 18);
+    } else if (ratio < high) {
+      fraudProbability =
+        26 + Math.round(((high - ratio) / (high - median || 1)) * 14);
+    } else {
+      fraudProbability = Math.max(
+        8,
+        22 - Math.round(((ratio - high) / high) * 12)
+      );
+    }
 
-  fraudProbability = Math.max(6, Math.min(97, fraudProbability));
+    if (price >= predictionLabDataset.averagePriceUsd) {
+      fraudProbability += 6;
+    }
+    if (weight >= predictionLabDataset.averageWeightKg) {
+      fraudProbability += 4;
+    }
+    if (taxUsd >= predictionLabDataset.averageTaxUsd && ratio > low) {
+      fraudProbability -= 4;
+    }
+
+    fraudProbability = Math.max(6, Math.min(97, fraudProbability));
+  }
 
   const importance = {
     "Tax Ratio": Math.max(22, Math.min(99, fraudProbability + 4)),
@@ -227,7 +182,10 @@ const buildDatasetAssessment = (sample) => {
       12,
       Math.min(74, Math.round((taxUsd / predictionLabDataset.averageTaxUsd) * 28 + 20))
     ),
-    "Destination Port": getPortActivityWeight(sample.destinationPort),
+    "Destination Port": getPortActivityWeight(
+      sample.destinationPort,
+      predictionLabDataset
+    ),
   };
 
   const strongestFactors = [];
@@ -260,7 +218,13 @@ const buildDatasetAssessment = (sample) => {
       "The shipment falls below the dataset median tax ratio, so it stays in a watch zone where under-declaration becomes more plausible.";
   }
 
-  const aiPrediction = fraudProbability >= 55 ? "HIGH RISK" : "LOW RISK";
+  if (hasLiveModelScore) {
+    explanation =
+      "This round uses the live model score from the backend. The supporting explanation still references dataset benchmarks so the decision is easier to interpret.";
+  }
+
+  const aiPrediction =
+    sample.aiPrediction ?? (fraudProbability >= 55 ? "HIGH RISK" : "LOW RISK");
 
   return {
     fraudProbability,
@@ -272,7 +236,14 @@ const buildDatasetAssessment = (sample) => {
   };
 };
 
-const buildShipmentSpotRound = (difficulty) => {
+const buildShipmentSpotRound = (difficulty, datasetGameSamples, predictionLabDataset) => {
+  if (!datasetGameSamples.length) {
+    return {
+      shipments: [],
+      answerId: null,
+    };
+  }
+
   const cardCount = shipmentSpotDifficulties[difficulty].cards;
   const shuffled = [...datasetGameSamples].sort(() => Math.random() - 0.5);
   let selected = shuffled.slice(0, cardCount);
@@ -283,7 +254,7 @@ const buildShipmentSpotRound = (difficulty) => {
 
   selected = selected.map((sample) => ({
     ...sample,
-    ...buildDatasetAssessment(sample),
+    ...buildDatasetAssessment(sample, predictionLabDataset),
   }));
 
   const highestRisk = [...selected].sort(
@@ -302,7 +273,11 @@ const beatModelDifficulties = {
   hard: { label: "Hard" },
 };
 
-const buildBeatModelRound = (difficulty) => {
+const buildBeatModelRound = (difficulty, datasetGameSamples, predictionLabDataset) => {
+  if (!datasetGameSamples.length) {
+    return null;
+  }
+
   const { low, high } = predictionLabDataset.taxRatioQuartiles;
   const pools = {
     easy: datasetGameSamples.filter(
@@ -319,7 +294,7 @@ const buildBeatModelRound = (difficulty) => {
   const sample = candidates[Math.floor(Math.random() * candidates.length)];
   return {
     ...sample,
-    ...buildDatasetAssessment(sample),
+    ...buildDatasetAssessment(sample, predictionLabDataset),
   };
 };
 
@@ -339,16 +314,47 @@ const formatCompactNumber = (value) =>
 const formatPercent = (value) => `${Number(value || 0).toFixed(2)}%`;
 
 function MiniTestingLabPage() {
-  const [selectedShipmentId, setSelectedShipmentId] = useState(
-    shipmentSignals[0].id
+  const { labContext, loading: contextLoading, error: contextError } = useLabContext();
+  const predictionLabDataset = labContext?.predictionLabDataset ?? {
+    totalShipments: 0,
+    lowRiskCount: 0,
+    highRiskCount: 0,
+    lowRiskShare: 0,
+    highRiskShare: 0,
+    averageTaxRatio: 0,
+    averagePriceUsd: 0,
+    averageWeightKg: 0,
+    averageTaxUsd: 0,
+    taxRatioQuartiles: {
+      low: 0,
+      median: 0,
+      high: 0,
+    },
+    model: {
+      name: "KNN Classifier",
+      accuracy: 0,
+      macroF1: 0,
+      rowsUsed: 0,
+      testRows: 0,
+    },
+    topPorts: [],
+    featuredSamples: [],
+    comparisonSamples: [],
+    labSamples: [],
+  };
+  const algorithmMetrics = labContext?.algorithmMetrics ?? [];
+  const shipmentSignals = useMemo(
+    () => [
+      ...predictionLabDataset.featuredSamples,
+      ...predictionLabDataset.comparisonSamples,
+    ],
+    [predictionLabDataset]
   );
-  const [selectedMetricId, setSelectedMetricId] = useState(
-    algorithmMetrics[0].id
-  );
+  const datasetGameSamples = predictionLabDataset.labSamples ?? [];
+  const [selectedShipmentId, setSelectedShipmentId] = useState("");
+  const [selectedMetricId, setSelectedMetricId] = useState("");
   const [isTaxRatioLabOpen, setIsTaxRatioLabOpen] = useState(false);
-  const [taxRatioSliderValue, setTaxRatioSliderValue] = useState(
-    Math.round(shipmentSignals[0].taxRatio * 1000) / 10
-  );
+  const [taxRatioSliderValue, setTaxRatioSliderValue] = useState(0);
   const [isRiskPuzzleOpen, setIsRiskPuzzleOpen] = useState(false);
   const [puzzleDifficulty, setPuzzleDifficulty] = useState("medium");
   const [puzzleAvailableOrder, setPuzzleAvailableOrder] = useState(
@@ -363,9 +369,10 @@ function MiniTestingLabPage() {
   const [puzzleShowHint, setPuzzleShowHint] = useState(false);
   const [isShipmentSpotOpen, setIsShipmentSpotOpen] = useState(false);
   const [shipmentSpotDifficulty, setShipmentSpotDifficulty] = useState("medium");
-  const [shipmentSpotRound, setShipmentSpotRound] = useState(() =>
-    buildShipmentSpotRound("medium")
-  );
+  const [shipmentSpotRound, setShipmentSpotRound] = useState({
+    shipments: [],
+    answerId: null,
+  });
   const [shipmentSpotTimeLeft, setShipmentSpotTimeLeft] = useState(
     shipmentSpotDifficulties.medium.time
   );
@@ -375,9 +382,7 @@ function MiniTestingLabPage() {
   const [shipmentSpotStreak, setShipmentSpotStreak] = useState(0);
   const [isBeatModelOpen, setIsBeatModelOpen] = useState(false);
   const [beatModelDifficulty, setBeatModelDifficulty] = useState("medium");
-  const [beatModelRound, setBeatModelRound] = useState(() =>
-    buildBeatModelRound("medium")
-  );
+  const [beatModelRound, setBeatModelRound] = useState(null);
   const [beatModelChoice, setBeatModelChoice] = useState(null);
   const [beatModelConfidence, setBeatModelConfidence] = useState(70);
   const [beatModelScanning, setBeatModelScanning] = useState(false);
@@ -386,12 +391,79 @@ function MiniTestingLabPage() {
   const [beatModelAiScore, setBeatModelAiScore] = useState(0);
   const [beatModelStreak, setBeatModelStreak] = useState(0);
 
+  useEffect(() => {
+    if (!shipmentSignals.length) {
+      return;
+    }
+
+    setSelectedShipmentId((current) => current || shipmentSignals[0].id);
+    setTaxRatioSliderValue((current) =>
+      current > 0 ? current : Math.round(shipmentSignals[0].taxRatio * 1000) / 10
+    );
+  }, [shipmentSignals]);
+
+  useEffect(() => {
+    if (!algorithmMetrics.length) {
+      return;
+    }
+
+    setSelectedMetricId((current) => current || algorithmMetrics[0].id);
+  }, [algorithmMetrics]);
+
+  useEffect(() => {
+    if (!datasetGameSamples.length) {
+      return;
+    }
+
+    setShipmentSpotRound((current) =>
+      current.shipments.length
+        ? current
+        : buildShipmentSpotRound("medium", datasetGameSamples, predictionLabDataset)
+    );
+    setBeatModelRound((current) =>
+      current || buildBeatModelRound("medium", datasetGameSamples, predictionLabDataset)
+    );
+  }, [datasetGameSamples, predictionLabDataset]);
+
   const selectedShipment =
     shipmentSignals.find((item) => item.id === selectedShipmentId) ||
-    shipmentSignals[0];
+    shipmentSignals[0] || {
+      id: "",
+      productName: "Shipment sample",
+      destinationPort: "Unknown",
+      priceUsd: 0,
+      weightKg: 0,
+      volumeM3: 0,
+      taxUsd: 0,
+      taxRatio: 0,
+      risk: "LOW RISK",
+    };
   const selectedMetric =
     algorithmMetrics.find((item) => item.id === selectedMetricId) ||
-    algorithmMetrics[0];
+    algorithmMetrics[0] || {
+      id: "accuracy",
+      title: "Accuracy",
+      knn: 0,
+      logistic: 0,
+      description: "Live model comparison is loading.",
+      recommendation: "Live model comparison is loading.",
+    };
+  const activeBeatModelRound = beatModelRound || {
+    id: "",
+    productName: "Shipment sample",
+    destinationPort: "Unknown",
+    priceUsd: 0,
+    weightKg: 0,
+    volumeM3: 0,
+    taxUsd: 0,
+    taxRatio: 0,
+    fraudProbability: 0,
+    strongestFactors: [],
+    importance: {},
+    explanation: "Live model round data is loading.",
+    aiPrediction: "LOW RISK",
+    correctAnswer: "LOW RISK",
+  };
 
   const shipmentSignal = useMemo(() => {
     const ratio = Number(selectedShipment?.taxRatio || 0);
@@ -487,8 +559,9 @@ function MiniTestingLabPage() {
       setBeatModelScanning(false);
       setBeatModelRevealed(true);
 
-      const humanCorrect = beatModelChoice === beatModelRound.correctAnswer;
-      const aiCorrect = beatModelRound.aiPrediction === beatModelRound.correctAnswer;
+      const humanCorrect = beatModelChoice === activeBeatModelRound.correctAnswer;
+      const aiCorrect =
+        activeBeatModelRound.aiPrediction === activeBeatModelRound.correctAnswer;
 
       if (humanCorrect) {
         setBeatModelHumanScore((current) => current + 100 + beatModelStreak * 10);
@@ -503,7 +576,7 @@ function MiniTestingLabPage() {
     }, 1400);
 
     return () => window.clearTimeout(timer);
-  }, [beatModelChoice, beatModelRound, beatModelScanning, beatModelStreak]);
+  }, [activeBeatModelRound, beatModelChoice, beatModelScanning, beatModelStreak]);
 
   const taxRatioLab = useMemo(() => {
     const ratio = taxRatioSliderValue / 100;
@@ -578,7 +651,9 @@ function MiniTestingLabPage() {
 
   const startShipmentSpotRound = (difficulty = shipmentSpotDifficulty) => {
     setShipmentSpotDifficulty(difficulty);
-    setShipmentSpotRound(buildShipmentSpotRound(difficulty));
+    setShipmentSpotRound(
+      buildShipmentSpotRound(difficulty, datasetGameSamples, predictionLabDataset)
+    );
     setShipmentSpotTimeLeft(shipmentSpotDifficulties[difficulty].time);
     setShipmentSpotSelection(null);
     setShipmentSpotRevealed(false);
@@ -591,7 +666,9 @@ function MiniTestingLabPage() {
 
   const startBeatModelRound = (difficulty = beatModelDifficulty) => {
     setBeatModelDifficulty(difficulty);
-    setBeatModelRound(buildBeatModelRound(difficulty));
+    setBeatModelRound(
+      buildBeatModelRound(difficulty, datasetGameSamples, predictionLabDataset)
+    );
     setBeatModelChoice(null);
     setBeatModelConfidence(70);
     setBeatModelScanning(false);
@@ -699,7 +776,11 @@ function MiniTestingLabPage() {
     () =>
       shipmentSpotRound.shipments.find(
         (shipment) => shipment.id === shipmentSpotRound.answerId
-      ) || shipmentSpotRound.shipments[0],
+      ) || shipmentSpotRound.shipments[0] || {
+        explanation: "",
+        strongestFactors: [],
+        importance: {},
+      },
     [shipmentSpotRound]
   );
 
@@ -723,9 +804,31 @@ function MiniTestingLabPage() {
   };
 
   const beatModelHumanCorrect =
-    beatModelChoice != null && beatModelChoice === beatModelRound.correctAnswer;
+    beatModelChoice != null && beatModelChoice === activeBeatModelRound.correctAnswer;
   const beatModelAiCorrect =
-    beatModelRound.aiPrediction === beatModelRound.correctAnswer;
+    activeBeatModelRound.aiPrediction === activeBeatModelRound.correctAnswer;
+
+  if (contextLoading) {
+    return (
+      <div className="dashboard-page">
+        <section className="panel">
+          <h3>Loading Mini Testing Lab...</h3>
+          <p>Reading live dataset samples and model comparisons from the backend.</p>
+        </section>
+      </div>
+    );
+  }
+
+  if (contextError || !labContext) {
+    return (
+      <div className="dashboard-page">
+        <section className="panel">
+          <h3>Mini Testing Lab connection error</h3>
+          <p>{contextError || "Live testing lab data could not be loaded."}</p>
+        </section>
+      </div>
+    );
+  }
 
   const handleBeatModelChoice = (choice) => {
     if (beatModelScanning || beatModelRevealed) {
@@ -1014,7 +1117,7 @@ function MiniTestingLabPage() {
           <div className="lab-confidence-grid">
             <div className="lab-confidence-card">
               <span>KNN result</span>
-              <strong>{formatPercent(selectedMetric.knn)}</strong>
+              <strong>{selectedMetric.knn.toFixed(2)}%</strong>
               <div className="bar-track">
                 <div
                   className="bar-fill low-risk"
@@ -1025,7 +1128,7 @@ function MiniTestingLabPage() {
 
             <div className="lab-confidence-card">
               <span>Logistic Regression result</span>
-              <strong>{formatPercent(selectedMetric.logistic)}</strong>
+              <strong>{selectedMetric.logistic.toFixed(2)}%</strong>
               <div className="bar-track">
                 <div
                   className="bar-fill high-risk"
@@ -1044,9 +1147,11 @@ function MiniTestingLabPage() {
                   className="bar-fill model-score"
                   style={{
                     width: `${
-                      (predictionLabDataset.model.testRows /
-                        predictionLabDataset.model.rowsUsed) *
-                      100
+                      predictionLabDataset.model.rowsUsed > 0
+                        ? (predictionLabDataset.model.testRows /
+                            predictionLabDataset.model.rowsUsed) *
+                          100
+                        : 0
                     }%`,
                   }}
                 />
@@ -1745,27 +1850,27 @@ function MiniTestingLabPage() {
                   <div className="beat-model-profile-grid">
                     <div>
                       <span>Invoice Value</span>
-                      <strong>{formatCurrency(beatModelRound.priceUsd)}</strong>
+                      <strong>{formatCurrency(activeBeatModelRound.priceUsd)}</strong>
                     </div>
                     <div>
                       <span>Tax Ratio</span>
-                      <strong>{(beatModelRound.taxRatio * 100).toFixed(1)}%</strong>
+                      <strong>{(activeBeatModelRound.taxRatio * 100).toFixed(1)}%</strong>
                     </div>
                     <div>
                       <span>Shipment Weight</span>
-                      <strong>{beatModelRound.weightKg} kg</strong>
+                      <strong>{activeBeatModelRound.weightKg} kg</strong>
                     </div>
                     <div>
                       <span>Declared Tax</span>
-                      <strong>{formatCurrency(beatModelRound.taxUsd)}</strong>
+                      <strong>{formatCurrency(activeBeatModelRound.taxUsd)}</strong>
                     </div>
                     <div>
                       <span>Volume</span>
-                      <strong>{beatModelRound.volumeM3.toFixed(4)} m³</strong>
+                      <strong>{activeBeatModelRound.volumeM3.toFixed(4)} m³</strong>
                     </div>
                     <div>
                       <span>Destination Port</span>
-                      <strong>{beatModelRound.destinationPort}</strong>
+                      <strong>{activeBeatModelRound.destinationPort}</strong>
                     </div>
                   </div>
                 </div>
@@ -1844,11 +1949,11 @@ function MiniTestingLabPage() {
                       </div>
                       <div>
                         <span>AI Prediction</span>
-                        <strong>{beatModelRound.aiPrediction}</strong>
+                        <strong>{activeBeatModelRound.aiPrediction}</strong>
                       </div>
                       <div>
                         <span>Correct Answer</span>
-                        <strong>{beatModelRound.correctAnswer}</strong>
+                        <strong>{activeBeatModelRound.correctAnswer}</strong>
                       </div>
                     </div>
 
@@ -1860,12 +1965,12 @@ function MiniTestingLabPage() {
                           : "The model won this one"}
                       </strong>
                       <small>
-                        Fraud probability: {beatModelRound.fraudProbability}%
+                        Fraud probability: {activeBeatModelRound.fraudProbability}%
                       </small>
                     </div>
 
                     <div className="beat-model-importance-list">
-                      {Object.entries(beatModelRound.importance).map(
+                      {Object.entries(activeBeatModelRound.importance).map(
                         ([label, value]) => (
                           <div className="beat-model-importance-row" key={label}>
                             <div className="beat-model-importance-copy">
@@ -1890,9 +1995,9 @@ function MiniTestingLabPage() {
                           ? "Why the AI made this call"
                           : "Where the AI struggled"}
                       </strong>
-                      <p>{beatModelRound.explanation}</p>
+                      <p>{activeBeatModelRound.explanation}</p>
                       <div className="beat-model-factor-list">
-                        {beatModelRound.strongestFactors.map((factor) => (
+                        {activeBeatModelRound.strongestFactors.map((factor) => (
                           <div key={factor} className="beat-model-factor-chip">
                             {factor}
                           </div>

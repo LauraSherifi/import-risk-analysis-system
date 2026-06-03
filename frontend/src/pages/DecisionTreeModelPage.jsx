@@ -34,7 +34,7 @@ function getMatrix(model) {
   ];
 }
 
-function LogisticRegressionModelPage() {
+function DecisionTreeModelPage() {
   const [modelData, setModelData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,12 +42,12 @@ function LogisticRegressionModelPage() {
   useEffect(() => {
     async function loadModelData() {
       try {
-        const response = await fetch("/api/models/logistic-regression", {
-             headers: getAuthHeaders(),
-             });
+        const response = await fetch("/api/models/decision-tree", {
+          headers: getAuthHeaders(),
+        });
 
         if (!response.ok) {
-          throw new Error("Logistic Regression data could not be loaded.");
+          throw new Error("Decision Tree data could not be loaded.");
         }
 
         const data = await response.json();
@@ -66,8 +66,8 @@ function LogisticRegressionModelPage() {
     return (
       <div className="dashboard-page">
         <section className="panel">
-          <h3>Loading Logistic Regression model...</h3>
-          <p>Reading model metrics from the backend.</p>
+          <h3>Loading Decision Tree model...</h3>
+          <p>Reading Decision Tree metrics from the backend.</p>
         </section>
       </div>
     );
@@ -77,7 +77,7 @@ function LogisticRegressionModelPage() {
     return (
       <div className="dashboard-page">
         <section className="panel">
-          <h3>Logistic Regression connection error</h3>
+          <h3>Decision Tree connection error</h3>
           <p>{error}</p>
         </section>
       </div>
@@ -90,10 +90,10 @@ function LogisticRegressionModelPage() {
     return (
       <div className="dashboard-page">
         <section className="panel">
-          <h3>Logistic Regression metrics not found</h3>
+          <h3>Decision Tree metrics not found</h3>
           <p>
-            The backend is working, but no Logistic Regression metrics file was
-            found in ml/models.
+            The backend is working, but no Decision Tree metrics file was found
+            in ml/models.
           </p>
         </section>
       </div>
@@ -105,32 +105,37 @@ function LogisticRegressionModelPage() {
   const recall = toPercentNumber(metrics.recall);
   const f1Score = toPercentNumber(metrics.f1_score);
   const baselineAccuracy = toPercentNumber(metrics.baseline_accuracy);
-  const cvF1Mean = toPercentNumber(metrics.cv_f1_mean);
-  const cvF1Std = toPercentNumber(metrics.cv_f1_std);
 
   const matrix = getMatrix(metrics);
-  const featuresUsed = modelData?.features_used ?? [];
+  const featuresUsed = modelData?.features_used ?? metrics.features_used ?? [];
+  const featureImportance = metrics.feature_importance ?? [];
+  const criterionResults = metrics.criterion_results ?? [];
+
+  const topFeature = featureImportance?.[0]?.feature ?? "—";
+  const topFeatureImportance = toPercentNumber(
+    featureImportance?.[0]?.importance ?? 0
+  );
 
   const cards = [
     {
       label: "Algorithm",
-      value: "Logistic Regression",
-      note: "Completed benchmark classifier",
+      value: metrics.model || "Decision Tree",
+      note: "Interpretable tree classifier",
+    },
+    {
+      label: "Best Criterion",
+      value: String(metrics.criterion || "—").toUpperCase(),
+      note: "Selected from Gini, Entropy, and Log Loss",
     },
     {
       label: "Accuracy",
       value: `${accuracy.toFixed(2)}%`,
-      note: "Overall model performance",
+      note: "Final model without PCA",
     },
     {
       label: "F1 Score",
       value: `${f1Score.toFixed(2)}%`,
       note: "High-risk class performance",
-    },
-    {
-      label: "Baseline Accuracy",
-      value: `${baselineAccuracy.toFixed(2)}%`,
-      note: "Majority-class benchmark",
     },
   ];
 
@@ -140,7 +145,6 @@ function LogisticRegressionModelPage() {
     { label: "Recall", value: recall },
     { label: "F1 Score", value: f1Score },
     { label: "Baseline Accuracy", value: baselineAccuracy },
-    { label: "CV F1 Mean", value: cvF1Mean },
   ];
 
   const confusionMatrix = [
@@ -170,16 +174,20 @@ function LogisticRegressionModelPage() {
     },
   ];
 
-  const bestParams = metrics.best_params ?? {};
+  const taxFeatureDominates =
+    topFeature === "tax_ratio_band" ||
+    topFeature === "tax_band" ||
+    topFeature === "tax_ratio" ||
+    topFeature === "tax";
 
   return (
     <div className="dashboard-page">
       <header className="page-header">
         <div>
-          <h1>Logistic Regression Dashboard</h1>
+          <h1>Decision Tree Dashboard</h1>
           <p>
-            Performance summary for the completed Logistic Regression shipment
-            risk classifier, loaded directly from backend model metrics.
+            Performance summary for the final Decision Tree classifier trained
+            without PCA, using transformed tax-related variables.
           </p>
         </div>
 
@@ -201,8 +209,11 @@ function LogisticRegressionModelPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h3>Logistic Regression Metrics</h3>
-              <p>Main evaluation results from the backend metrics file.</p>
+              <h3>Decision Tree Metrics</h3>
+              <p>
+                Evaluation results for the selected Decision Tree model without
+                PCA.
+              </p>
             </div>
           </div>
 
@@ -221,18 +232,95 @@ function LogisticRegressionModelPage() {
           <div className="panel-header">
             <div>
               <h3>Model Interpretation</h3>
-              <p>How this model should be read in the final interface.</p>
+              <p>How this Decision Tree result should be explained.</p>
             </div>
           </div>
 
           <div className="highlight-insight">
-            <span>Benchmark model</span>
-            <strong>{accuracy.toFixed(2)}%</strong>
+            <span>Final selected approach</span>
+            <strong>Without PCA</strong>
             <p>
-              Logistic Regression is useful as a transparent and interpretable
-              benchmark. However, its accuracy is below the majority-class
-              baseline, meaning it should not be presented as the strongest
-              operational model.
+              PCA was tested, but it was not selected for the final Decision
+              Tree model because it produced unstable results. The final model
+              uses tax_band and tax_ratio_band instead of raw tax and tax_ratio.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="dashboard-grid">
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h3>Criterion Comparison</h3>
+              <p>
+                Decision Tree was tested using Gini, Entropy, and Log Loss.
+              </p>
+            </div>
+          </div>
+
+          <div className="metric-chart">
+            {criterionResults.map((item) => (
+              <div key={item.criterion} className="model-notes">
+                <p>
+                  <strong>{String(item.criterion).toUpperCase()}</strong>
+                </p>
+
+                <ProgressBar
+                  label="Accuracy"
+                  value={toPercentNumber(item.accuracy)}
+                />
+                <ProgressBar
+                  label="Precision"
+                  value={toPercentNumber(item.precision)}
+                />
+                <ProgressBar
+                  label="Recall"
+                  value={toPercentNumber(item.recall)}
+                />
+                <ProgressBar
+                  label="F1 Score"
+                  value={toPercentNumber(item.f1_score)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h3>Validation Reading</h3>
+              <p>Important context for reading this model.</p>
+            </div>
+          </div>
+
+          <div className="quality-dashboard-grid">
+            <div>
+              <span>Rows Used</span>
+              <strong>{formatCount(metrics.rows_used)}</strong>
+            </div>
+            <div>
+              <span>Test Rows</span>
+              <strong>{formatCount(metrics.test_rows)}</strong>
+            </div>
+            <div>
+              <span>Features</span>
+              <strong>{featuresUsed.length}</strong>
+            </div>
+            <div>
+              <span>Top Feature</span>
+              <strong>{normalizeFeatureName(topFeature)}</strong>
+            </div>
+          </div>
+
+          <div className="highlight-insight">
+            <span>Top feature importance</span>
+            <strong>{topFeatureImportance.toFixed(2)}%</strong>
+            <p>
+              The most influential feature is {normalizeFeatureName(topFeature)}.
+              This shows that the Decision Tree relies strongly on transformed
+              tax-related patterns.
             </p>
           </div>
         </div>
@@ -282,38 +370,22 @@ function LogisticRegressionModelPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h3>Benchmark Comparison</h3>
-              <p>Comparison against the simple majority-class baseline.</p>
+              <h3>Feature Importance</h3>
+              <p>
+                Most influential variables used by the final Decision Tree
+                model.
+              </p>
             </div>
           </div>
 
-          <div className="quality-dashboard-grid">
-            <div>
-              <span>Model Accuracy</span>
-              <strong>{accuracy.toFixed(2)}%</strong>
-            </div>
-            <div>
-              <span>Baseline Accuracy</span>
-              <strong>{baselineAccuracy.toFixed(2)}%</strong>
-            </div>
-            <div>
-              <span>CV F1 Mean</span>
-              <strong>{cvF1Mean.toFixed(2)}%</strong>
-            </div>
-            <div>
-              <span>CV F1 Std</span>
-              <strong>{cvF1Std.toFixed(2)}%</strong>
-            </div>
-          </div>
-
-          <div className="highlight-insight">
-            <span>Key reading</span>
-            <strong>Below baseline</strong>
-            <p>
-              The majority-class baseline is higher than the Logistic Regression
-              accuracy, so this model is best used for methodological comparison
-              and interpretability, not as the final best model.
-            </p>
+          <div className="metric-chart">
+            {featureImportance.map((item) => (
+              <ProgressBar
+                key={item.feature}
+                label={normalizeFeatureName(item.feature)}
+                value={toPercentNumber(item.importance)}
+              />
+            ))}
           </div>
         </div>
       </section>
@@ -322,55 +394,50 @@ function LogisticRegressionModelPage() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h3>Best Parameters</h3>
-              <p>Hyperparameters selected during model training.</p>
-            </div>
-          </div>
-
-          <div className="quality-dashboard-grid">
-            <div>
-              <span>C</span>
-              <strong>{bestParams.classifier__C ?? "—"}</strong>
-            </div>
-            <div>
-              <span>Class Weight</span>
-              <strong>{bestParams.classifier__class_weight ?? "—"}</strong>
-            </div>
-            <div>
-              <span>Solver</span>
-              <strong>{bestParams.classifier__solver ?? "—"}</strong>
-            </div>
-            <div>
-              <span>Model Type</span>
-              <strong>Linear</strong>
-            </div>
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-header">
-            <div>
               <h3>Model Role</h3>
-              <p>Why Logistic Regression is still useful in the project.</p>
+              <p>How Decision Tree should be positioned in the project.</p>
             </div>
           </div>
 
           <div className="mini-pipeline">
             <span>Clean Data</span>
             <i />
-            <span>Feature Set</span>
+            <span>Tax Bands</span>
             <i />
-            <span>Logistic Model</span>
+            <span>Decision Tree</span>
             <i />
-            <span>Benchmark</span>
+            <span>Interpretation</span>
           </div>
 
           <div className="model-notes">
             <p>
-              Logistic Regression provides a simple, explainable comparison
-              point against more flexible models. Its weaker performance helps
-              justify why KNN is currently presented as the stronger completed
-              classifier.
+              Decision Tree is useful because it is easier to explain than more
+              complex models. The model was trained without PCA, while Gini,
+              Entropy, and Log Loss were compared as splitting criteria.
+            </p>
+
+            <p>
+              The final selected criterion is{" "}
+              <strong>{String(metrics.criterion || "—").toUpperCase()}</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div className="panel insight-panel">
+          <div className="panel-header">
+            <div>
+              <h3>Tax Signal Reading</h3>
+              <p>How tax-related variables affect interpretation.</p>
+            </div>
+          </div>
+
+          <div className="highlight-insight">
+            <span>{taxFeatureDominates ? "Tax-band driven" : "Mixed drivers"}</span>
+            <strong>{normalizeFeatureName(topFeature)}</strong>
+            <p>
+              Because the top feature is transformed into a band, the model is
+              less dependent on raw tax thresholds, but the result should still
+              be interpreted as strongly related to tax behavior.
             </p>
           </div>
         </div>
@@ -379,9 +446,9 @@ function LogisticRegressionModelPage() {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h3>Features Used by Logistic Regression</h3>
+            <h3>Features Used by Decision Tree</h3>
             <p>
-              Input variables included in the Logistic Regression training and
+              Input variables included in the final Decision Tree training and
               evaluation.
             </p>
           </div>
@@ -399,4 +466,4 @@ function LogisticRegressionModelPage() {
   );
 }
 
-export default LogisticRegressionModelPage;
+export default DecisionTreeModelPage;

@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { getAuthHeaders } from "../auth";
-import { predictionLabDataset } from "../data/predictionLabData";
+import { useLabContext } from "../hooks/useLabContext";
 
-const initialFormData = {
+const createInitialFormData = (predictionLabDataset) => ({
   productName: "",
-  destinationPort: predictionLabDataset.topPorts[0].name,
+  destinationPort: predictionLabDataset?.topPorts?.[0]?.name ?? "",
   price: "",
   weight: "",
   volume: "",
   tax: "",
-};
+});
 
 const impactLabels = {
   high: "High impact",
@@ -62,8 +62,37 @@ const formatCompactCurrency = (value) =>
     maximumFractionDigits: 1,
   }).format(Number(value || 0));
 
+const defaultPredictionLabDataset = {
+  totalShipments: 0,
+  lowRiskCount: 0,
+  highRiskCount: 0,
+  lowRiskShare: 0,
+  highRiskShare: 0,
+  averageTaxRatio: 0,
+  averagePriceUsd: 0,
+  averageWeightKg: 0,
+  averageTaxUsd: 0,
+  taxRatioQuartiles: {
+    low: 0,
+    median: 0,
+    high: 0,
+  },
+  model: {
+    name: "KNN",
+    accuracy: 0,
+    testRows: 0,
+  },
+  topPorts: [],
+  featuredSamples: [],
+  comparisonSamples: [],
+  labSamples: [],
+};
+
 function PredictionView() {
-  const [formData, setFormData] = useState(initialFormData);
+  const { labContext, loading: contextLoading, error: contextError } = useLabContext();
+  const predictionLabDataset =
+    labContext?.predictionLabDataset ?? defaultPredictionLabDataset;
+  const [formData, setFormData] = useState(createInitialFormData());
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -77,13 +106,29 @@ function PredictionView() {
   const taxRatioPreview = price > 0 ? Number((tax / price).toFixed(4)) : 0;
   const isHighRisk = result?.risk === "HIGH RISK";
   const riskScore = Math.round(Number(result?.confidence || 0) * 100);
+  const topPortMaxCount = predictionLabDataset.topPorts?.[0]?.shipmentCount ?? 1;
+
+  useEffect(() => {
+    if (!predictionLabDataset?.topPorts?.[0]?.name) {
+      return;
+    }
+
+    setFormData((current) =>
+      current.destinationPort
+        ? current
+        : {
+            ...current,
+            destinationPort: predictionLabDataset.topPorts[0].name,
+          }
+    );
+  }, [predictionLabDataset]);
 
   const allDatasetSamples = useMemo(
     () => [
-      ...predictionLabDataset.featuredSamples,
-      ...predictionLabDataset.comparisonSamples,
+      ...(predictionLabDataset?.featuredSamples ?? []),
+      ...(predictionLabDataset?.comparisonSamples ?? []),
     ],
-    []
+    [predictionLabDataset]
   );
 
   const probabilityRows = useMemo(() => {
@@ -99,10 +144,14 @@ function PredictionView() {
 
   const activePort = useMemo(
     () =>
-      predictionLabDataset.topPorts.find(
+      predictionLabDataset?.topPorts?.find(
         (port) => port.name === formData.destinationPort
-      ) || predictionLabDataset.topPorts[0],
-    [formData.destinationPort]
+      ) ||
+      predictionLabDataset?.topPorts?.[0] || {
+        name: "No port selected",
+        shipmentCount: 0,
+      },
+    [formData.destinationPort, predictionLabDataset]
   );
 
   const keyFactors = useMemo(() => {
@@ -224,6 +273,28 @@ function PredictionView() {
     loadPredictionHistory();
   }, []);
 
+  if (contextLoading) {
+    return (
+      <div className="prediction-page">
+        <section className="panel">
+          <h3>Loading prediction lab...</h3>
+          <p>Reading live dataset benchmarks and model context from the backend.</p>
+        </section>
+      </div>
+    );
+  }
+
+  if (contextError || !predictionLabDataset) {
+    return (
+      <div className="prediction-page">
+        <section className="panel">
+          <h3>Prediction lab connection error</h3>
+          <p>{contextError || "Live prediction context could not be loaded."}</p>
+        </section>
+      </div>
+    );
+  }
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
@@ -242,7 +313,7 @@ function PredictionView() {
   };
 
   const handleReset = () => {
-    setFormData(initialFormData);
+    setFormData(createInitialFormData(predictionLabDataset));
     setResult(null);
     setError("");
   };
@@ -804,11 +875,7 @@ function PredictionView() {
                       port.name === activePort.name ? "model-score" : "low-risk"
                     }`}
                     style={{
-                      width: `${
-                        (port.shipmentCount /
-                          predictionLabDataset.topPorts[0].shipmentCount) *
-                        100
-                      }%`,
+                      width: `${(port.shipmentCount / topPortMaxCount) * 100}%`,
                     }}
                   />
                 </div>

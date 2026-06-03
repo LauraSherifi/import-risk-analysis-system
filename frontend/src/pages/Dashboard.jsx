@@ -1,174 +1,245 @@
+import { useEffect, useState } from "react";
 import StatCard from "../components/StatCard";
 import ProgressBar from "../components/ProgressBar";
+import { getAuthHeaders } from "../auth";
 
-const overviewCards = [
-  {
-    label: "Total Records",
-    value: "263,821",
-    note: "Final cleaned shipment records",
-  },
-  {
-    label: "Completed Models",
-    value: "2",
-    note: "KNN and Logistic Regression",
-  },
-  {
-    label: "High Risk Share",
-    value: "14.9%",
-    note: "39,407 high-risk records",
-  },
-  {
-    label: "Model-ready Features",
-    value: "13",
-    note: "After feature engineering",
-  },
-];
+function toPercentNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Number((number * 100).toFixed(2)) : 0;
+}
 
-const riskData = [
-  { label: "LOW RISK", value: 224414, percentage: 85.1 },
-  { label: "HIGH RISK", value: 39407, percentage: 14.9 },
-];
+function formatPercent(value) {
+  if (value === null || value === undefined) return "—";
+  return `${toPercentNumber(value).toFixed(2)}%`;
+}
 
-const circularStats = [
-  {
-    label: "Low Risk",
-    value: 85.1,
-    detail: "224,414 records",
-    className: "circle-low",
-  },
-  {
-    label: "High Risk",
-    value: 14.9,
-    detail: "39,407 records",
-    className: "circle-high",
-  },
-  {
-    label: "KNN Accuracy",
-    value: 98.58,
-    detail: "Best completed model",
-    className: "circle-model",
-  },
-  {
-    label: "Logistic Accuracy",
-    value: 49.92,
-    detail: "Benchmark model",
-    className: "circle-benchmark",
-  },
-];
-const confusionMatrix = [
-  { actual: "LOW RISK", predicted: "LOW RISK", value: "10,131", type: "correct" },
-  { actual: "LOW RISK", predicted: "HIGH RISK", value: "77", type: "error" },
-  { actual: "HIGH RISK", predicted: "LOW RISK", value: "94", type: "error" },
-  { actual: "HIGH RISK", predicted: "HIGH RISK", value: "1,698", type: "correct" },
-];
+function formatCount(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toLocaleString() : "—";
+}
 
-const metricsMatrix = [
-  { metric: "Accuracy", knn: "98.58%", logistic: "49.92%" },
-  { metric: "F1 Score", knn: "97.18%", logistic: "22.88%" },
-  { metric: "Precision", knn: "95.66%", logistic: "14.86%" },
-  { metric: "Recall", knn: "94.75%", logistic: "49.75%" },
-];
+function formatDecimal(value, digits = 2) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toFixed(digits) : "—";
+}
 
-const completedModels = [
-  {
-    name: "KNN",
-    role: "Best completed classifier",
-    status: "Completed",
-    accuracy: 98.58,
-    f1: 97.18,
-    precision: 95.66,
-    recall: 94.75,
-    insight:
-      "Strongest current model with very high accuracy and balanced performance.",
-  },
-  {
-    name: "Logistic Regression",
-    role: "Interpretable benchmark model",
-    status: "Completed",
-    accuracy: 49.92,
-    f1: 22.88,
-    precision: 14.86,
-    recall: 49.75,
-    insight:
-      "Useful as a transparent baseline, but weaker than the KNN model.",
-  },
-];
+function getMacroF1(model) {
+  return model?.macro_f1 ?? model?.["macro avg"]?.["f1-score"] ?? null;
+}
 
-const featureImpact = [
-  { label: "Tax ratio", value: 92 },
-  { label: "Value per kg", value: 88 },
-  { label: "Density", value: 76 },
-  { label: "Volume", value: 68 },
-  { label: "Weight", value: 61 },
-];
+function getWeightedF1(model) {
+  return model?.weighted_f1 ?? model?.["weighted avg"]?.["f1-score"] ?? null;
+}
 
-const roadmapItems = [
-  {
-    model: "KNN",
-    status: "Completed",
-    note: "Currently strongest completed classifier.",
-  },
-  {
-    model: "Logistic Regression",
-    status: "Completed",
-    note: "Benchmark model for interpretability.",
-  },
-  {
-    model: "Decision Tree",
-    status: "Upcoming",
-    note: "Planned for future model comparison.",
-  },
-  {
-    model: "Neural Network",
-    status: "Upcoming",
-    note: "To be shown once fully validated.",
-  },
-];
+function getHighRiskMetric(model, metric) {
+  return (
+    model?.classification_report?.["HIGH RISK"]?.[metric] ??
+    model?.["HIGH RISK"]?.[metric] ??
+    null
+  );
+}
 
-const sampleRows = [
-  {
-    product: "Camera Bag",
-    price: "$37.66",
-    weight: "1.10 kg",
-    volume: "0.0406 m³",
-    taxRatio: "0.1662",
-    risk: "LOW RISK",
-  },
-  {
-    product: "Portable Bluetooth Keyboard",
-    price: "$144.65",
-    weight: "0.39 kg",
-    volume: "0.0002 m³",
-    taxRatio: "0.1159",
-    risk: "LOW RISK",
-  },
-  {
-    product: "Large Flat Rate Box",
-    price: "$38.57",
-    weight: "0.97 kg",
-    volume: "0.1521 m³",
-    taxRatio: "0.1789",
-    risk: "LOW RISK",
-  },
-  {
-    product: "Ceramic Tiles",
-    price: "$10.34",
-    weight: "6.22 kg",
-    volume: "0.0027 m³",
-    taxRatio: "0.1547",
-    risk: "LOW RISK",
-  },
-  {
-    product: "Garden Hose",
-    price: "$21.63",
-    weight: "1.18 kg",
-    volume: "0.6237 m³",
-    taxRatio: "0.0643",
-    risk: "HIGH RISK",
-  },
-];
+function getMatrix(model) {
+  const confusionMatrix = model?.confusion_matrix;
+
+  if (Array.isArray(confusionMatrix)) {
+    return confusionMatrix;
+  }
+
+  if (Array.isArray(confusionMatrix?.matrix)) {
+    return confusionMatrix.matrix;
+  }
+
+  return [
+    [0, 0],
+    [0, 0],
+  ];
+}
 
 function Dashboard() {
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadDashboardData() {
+      try {
+        const response = await fetch("/api/dashboard/summary", {
+            headers: getAuthHeaders(),
+                      });
+
+        if (!response.ok) {
+          throw new Error("Dashboard data could not be loaded.");
+        }
+
+        const data = await response.json();
+        setDashboardData(data);
+      } catch (requestError) {
+        setError(requestError.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="dashboard-page">
+        <section className="panel">
+          <h3>Loading dashboard...</h3>
+          <p>Reading dataset and model metrics from the backend.</p>
+        </section>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-page">
+        <section className="panel">
+          <h3>Dashboard connection error</h3>
+          <p>{error}</p>
+        </section>
+      </div>
+    );
+  }
+
+  const overviewCards = dashboardData?.overview_cards ?? [];
+  const overview = dashboardData?.overview ?? {};
+  const riskData = dashboardData?.risk_distribution ?? [];
+  const sampleRows = dashboardData?.sample_rows ?? [];
+  const featureImpact = dashboardData?.feature_impact ?? [];
+
+  const knnModel =
+    dashboardData?.models?.knn_latest ??
+    dashboardData?.models?.knn_demo ??
+    null;
+
+  const logisticModel = dashboardData?.models?.logistic_regression ?? null;
+
+  const knnAccuracy = toPercentNumber(knnModel?.accuracy);
+  const knnMacroF1 = toPercentNumber(getMacroF1(knnModel));
+  const knnWeightedF1 = toPercentNumber(getWeightedF1(knnModel));
+  const knnPrecision = toPercentNumber(getHighRiskMetric(knnModel, "precision"));
+  const knnRecall = toPercentNumber(getHighRiskMetric(knnModel, "recall"));
+
+  const logisticAccuracy = toPercentNumber(logisticModel?.accuracy);
+  const logisticF1 = toPercentNumber(logisticModel?.f1_score);
+  const logisticPrecision = toPercentNumber(logisticModel?.precision);
+  const logisticRecall = toPercentNumber(logisticModel?.recall);
+
+  const circularStats = [
+    {
+      label: "Low Risk",
+      value: Number(overview.low_risk_share ?? 0),
+      detail: `${formatCount(
+        riskData.find((item) => item.label === "LOW RISK")?.value
+      )} records`,
+      className: "circle-low",
+    },
+    {
+      label: "High Risk",
+      value: Number(overview.high_risk_share ?? 0),
+      detail: `${formatCount(
+        riskData.find((item) => item.label === "HIGH RISK")?.value
+      )} records`,
+      className: "circle-high",
+    },
+    {
+      label: "KNN Accuracy",
+      value: knnAccuracy,
+      detail: "Best completed model",
+      className: "circle-model",
+    },
+    {
+      label: "Logistic Accuracy",
+      value: logisticAccuracy,
+      detail: "Benchmark model",
+      className: "circle-benchmark",
+    },
+  ];
+
+  const completedModels = [
+    {
+      name: "KNN",
+      role: "Best completed classifier",
+      status: "Completed",
+      accuracy: knnAccuracy,
+      f1: knnMacroF1,
+      precision: knnPrecision,
+      recall: knnRecall,
+      insight:
+        "KNN is currently the strongest completed model in the interface. For now, the dashboard uses the latest KNN metrics file.",
+    },
+    {
+      name: "Logistic Regression",
+      role: "Interpretable benchmark model",
+      status: "Completed",
+      accuracy: logisticAccuracy,
+      f1: logisticF1,
+      precision: logisticPrecision,
+      recall: logisticRecall,
+      insight:
+        "Logistic Regression is kept as a transparent benchmark model, but its performance is weaker than KNN.",
+    },
+  ];
+
+  const metricsMatrix = [
+    {
+      metric: "Accuracy",
+      knn: `${knnAccuracy.toFixed(2)}%`,
+      logistic: `${logisticAccuracy.toFixed(2)}%`,
+    },
+    {
+      metric: "F1 Score",
+      knn: `${knnMacroF1.toFixed(2)}%`,
+      logistic: `${logisticF1.toFixed(2)}%`,
+    },
+    {
+      metric: "Precision",
+      knn: `${knnPrecision.toFixed(2)}%`,
+      logistic: `${logisticPrecision.toFixed(2)}%`,
+    },
+    {
+      metric: "Recall",
+      knn: `${knnRecall.toFixed(2)}%`,
+      logistic: `${logisticRecall.toFixed(2)}%`,
+    },
+  ];
+
+  const matrix = getMatrix(knnModel);
+
+  const confusionMatrix = [
+    {
+      actual: "LOW RISK",
+      predicted: "LOW RISK",
+      value: formatCount(matrix?.[0]?.[0]),
+      type: "correct",
+    },
+    {
+      actual: "LOW RISK",
+      predicted: "HIGH RISK",
+      value: formatCount(matrix?.[0]?.[1]),
+      type: "error",
+    },
+    {
+      actual: "HIGH RISK",
+      predicted: "LOW RISK",
+      value: formatCount(matrix?.[1]?.[0]),
+      type: "error",
+    },
+    {
+      actual: "HIGH RISK",
+      predicted: "HIGH RISK",
+      value: formatCount(matrix?.[1]?.[1]),
+      type: "correct",
+    },
+  ];
+
+  const visibleFeatureImpact = featureImpact.slice(0, 5);
+
   return (
     <div className="dashboard-page">
       <header className="page-header">
@@ -180,7 +251,7 @@ function Dashboard() {
           </p>
         </div>
 
-        <div className="status-pill">Validated Dataset</div>
+        <div className="status-pill">Live Backend Data</div>
       </header>
 
       <section className="cards">
@@ -194,36 +265,34 @@ function Dashboard() {
         ))}
       </section>
 
-
-
       <section className="panel dashboard-section">
-  <div className="panel-header">
-    <div>
-      <h3>Performance Snapshot</h3>
-      <p>
-        Circular overview of risk balance and completed model performance.
-      </p>
-    </div>
-  </div>
-
-  <div className="circle-chart-grid">
-    {circularStats.map((item) => (
-      <div className="circle-chart-card" key={item.label}>
-        <div
-          className={`circle-chart ${item.className}`}
-          style={{ "--value": `${item.value}%` }}
-        >
-          <div className="circle-chart-inner">
-            <strong>{item.value}%</strong>
-            <span>{item.label}</span>
+        <div className="panel-header">
+          <div>
+            <h3>Performance Snapshot</h3>
+            <p>
+              Circular overview of risk balance and completed model performance.
+            </p>
           </div>
         </div>
 
-        <p>{item.detail}</p>
-      </div>
-    ))}
-  </div>
-</section>
+        <div className="circle-chart-grid">
+          {circularStats.map((item) => (
+            <div className="circle-chart-card" key={item.label}>
+              <div
+                className={`circle-chart ${item.className}`}
+                style={{ "--value": `${item.value}%` }}
+              >
+                <div className="circle-chart-inner">
+                  <strong>{item.value.toFixed(2)}%</strong>
+                  <span>{item.label}</span>
+                </div>
+              </div>
+
+              <p>{item.detail}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="dashboard-grid">
         <div className="panel">
@@ -239,7 +308,7 @@ function Dashboard() {
               <div className="risk-row" key={item.label}>
                 <div className="risk-label">
                   <span>{item.label}</span>
-                  <strong>{item.value.toLocaleString()}</strong>
+                  <strong>{formatCount(item.value)}</strong>
                 </div>
 
                 <div className="bar-track">
@@ -270,8 +339,9 @@ function Dashboard() {
             <strong>KNN</strong>
             <p>
               KNN currently outperforms Logistic Regression across the main
-              evaluation metrics. Logistic Regression remains useful as an
-              interpretable benchmark while additional models are prepared.
+              evaluation metrics. The current risk label is simulated, so model
+              performance should be presented as prototype evaluation rather
+              than real-world fraud detection accuracy.
             </p>
           </div>
         </div>
@@ -314,88 +384,93 @@ function Dashboard() {
       </section>
 
       <section className="dashboard-grid">
-  <div className="panel">
-    <div className="panel-header">
-      <div>
-        <h3>KNN Confusion Matrix</h3>
-        <p>
-          Model evaluation matrix showing correct and incorrect classifications.
-        </p>
-      </div>
-    </div>
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h3>KNN Confusion Matrix</h3>
+              <p>
+                Model evaluation matrix showing correct and incorrect
+                classifications.
+              </p>
+            </div>
+          </div>
 
-    <div className="confusion-matrix">
-      <div className="matrix-corner" />
-      <div className="matrix-axis">Predicted Low</div>
-      <div className="matrix-axis">Predicted High</div>
+          <div className="confusion-matrix">
+            <div className="matrix-corner" />
+            <div className="matrix-axis">Predicted Low</div>
+            <div className="matrix-axis">Predicted High</div>
 
-      <div className="matrix-axis">Actual Low</div>
-      {confusionMatrix.slice(0, 2).map((cell) => (
-        <div className={`matrix-cell ${cell.type}`} key={`${cell.actual}-${cell.predicted}`}>
-          <strong>{cell.value}</strong>
-          <span>{cell.predicted}</span>
+            <div className="matrix-axis">Actual Low</div>
+            {confusionMatrix.slice(0, 2).map((cell) => (
+              <div
+                className={`matrix-cell ${cell.type}`}
+                key={`${cell.actual}-${cell.predicted}`}
+              >
+                <strong>{cell.value}</strong>
+                <span>{cell.predicted}</span>
+              </div>
+            ))}
+
+            <div className="matrix-axis">Actual High</div>
+            {confusionMatrix.slice(2, 4).map((cell) => (
+              <div
+                className={`matrix-cell ${cell.type}`}
+                key={`${cell.actual}-${cell.predicted}`}
+              >
+                <strong>{cell.value}</strong>
+                <span>{cell.predicted}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
 
-      <div className="matrix-axis">Actual High</div>
-      {confusionMatrix.slice(2, 4).map((cell) => (
-        <div className={`matrix-cell ${cell.type}`} key={`${cell.actual}-${cell.predicted}`}>
-          <strong>{cell.value}</strong>
-          <span>{cell.predicted}</span>
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h3>Model Metrics Matrix</h3>
+              <p>Side-by-side comparison of completed model results.</p>
+            </div>
+          </div>
+
+          <div className="metrics-heatmap">
+            <div className="heatmap-row heatmap-header">
+              <span>Metric</span>
+              <strong>KNN</strong>
+              <strong>Logistic</strong>
+            </div>
+
+            {metricsMatrix.map((row) => (
+              <div className="heatmap-row" key={row.metric}>
+                <span>{row.metric}</span>
+                <strong className="heatmap-strong">{row.knn}</strong>
+                <strong className="heatmap-weak">{row.logistic}</strong>
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
-    </div>
-  </div>
-
-  <div className="panel">
-    <div className="panel-header">
-      <div>
-        <h3>Model Metrics Matrix</h3>
-        <p>
-          Side-by-side comparison of completed model results.
-        </p>
-      </div>
-    </div>
-
-    <div className="metrics-heatmap">
-      <div className="heatmap-row heatmap-header">
-        <span>Metric</span>
-        <strong>KNN</strong>
-        <strong>Logistic</strong>
-      </div>
-
-      {metricsMatrix.map((row) => (
-        <div className="heatmap-row" key={row.metric}>
-          <span>{row.metric}</span>
-          <strong className="heatmap-strong">{row.knn}</strong>
-          <strong className="heatmap-weak">{row.logistic}</strong>
-        </div>
-      ))}
-    </div>
-  </div>
-</section>
+      </section>
 
       <section className="dashboard-grid">
         <div className="panel">
           <div className="panel-header">
             <div>
               <h3>Feature Impact Overview</h3>
-              <p>Visual overview of strongest feature groups used in analysis.</p>
+              <p>Feature differences between low-risk and high-risk records.</p>
             </div>
           </div>
 
           <div className="feature-impact-list">
-            {featureImpact.map((feature) => (
-              <div className="metric-row" key={feature.label}>
+            {visibleFeatureImpact.map((feature) => (
+              <div className="metric-row" key={feature.feature}>
                 <div className="metric-title">
-                  <span>{feature.label}</span>
-                  <strong>{feature.value}%</strong>
+                  <span>{feature.feature.replaceAll("_", " ")}</span>
+                  <strong>{feature.impact_score}%</strong>
                 </div>
 
                 <div className="bar-track">
                   <div
                     className="bar-fill model-score"
-                    style={{ width: `${feature.value}%` }}
+                    style={{ width: `${feature.impact_score}%` }}
                   />
                 </div>
               </div>
@@ -414,19 +489,19 @@ function Dashboard() {
           <div className="quality-dashboard-grid">
             <div>
               <span>Missing Values</span>
-              <strong>0</strong>
+              <strong>{formatCount(overview.missing_values)}</strong>
             </div>
             <div>
               <span>Duplicate Rows</span>
-              <strong>0</strong>
+              <strong>{formatCount(overview.duplicate_rows)}</strong>
             </div>
             <div>
               <span>Validation</span>
-              <strong>Passed</strong>
+              <strong>{dashboardData?.data_quality?.validation_status}</strong>
             </div>
             <div>
-              <span>Feature Set</span>
-              <strong>Ready</strong>
+              <span>Columns</span>
+              <strong>{formatCount(overview.total_columns)}</strong>
             </div>
           </div>
 
@@ -439,33 +514,6 @@ function Dashboard() {
             <i />
             <span>Validated</span>
           </div>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <h3>Model Roadmap</h3>
-            <p>
-              Completed models are visible in the sidebar, while upcoming models
-              remain hidden until validation is finished.
-            </p>
-          </div>
-        </div>
-
-        <div className="roadmap-grid">
-          {roadmapItems.map((item) => (
-            <div
-              className={`roadmap-card ${
-                item.status === "Completed" ? "roadmap-ready" : "roadmap-next"
-              }`}
-              key={item.model}
-            >
-              <span>{item.status}</span>
-              <strong>{item.model}</strong>
-              <p>{item.note}</p>
-            </div>
-          ))}
         </div>
       </section>
 
@@ -492,12 +540,12 @@ function Dashboard() {
 
             <tbody>
               {sampleRows.map((row) => (
-                <tr key={`${row.product}-${row.taxRatio}`}>
-                  <td>{row.product}</td>
-                  <td>{row.price}</td>
-                  <td>{row.weight}</td>
-                  <td>{row.volume}</td>
-                  <td>{row.taxRatio}</td>
+                <tr key={`${row.product_name}-${row.shipment_date}-${row.tax_ratio}`}>
+                  <td>{row.product_name}</td>
+                  <td>${formatDecimal(row.price_usd, 2)}</td>
+                  <td>{formatDecimal(row.weight_kg, 2)} kg</td>
+                  <td>{formatDecimal(row.volume_m3, 4)} m³</td>
+                  <td>{formatDecimal(row.tax_ratio, 4)}</td>
                   <td>
                     <span
                       className={`risk-badge ${
