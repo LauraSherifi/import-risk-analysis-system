@@ -119,6 +119,11 @@ function normalizePredictionSample(row, index) {
     volumeM3: round(row.volume_m3, 4),
     taxUsd: round(row.tax, 2),
     taxRatio: round(row.tax_ratio, 4),
+    taxCategory: row.tax_category || "general_goods",
+    expectedTaxRate: round(row.expected_tax_rate, 4),
+    expectedTax: round(row.expected_tax, 2),
+    taxGap: round(row.tax_gap, 2),
+    taxPaidShare: round(row.tax_paid_share, 4),
     risk: row.risk || "LOW RISK",
   };
 }
@@ -351,6 +356,11 @@ function buildSampleRows(rows, limit = 10) {
     volume_m3: toNumber(row.volume_m3),
     tax: toNumber(row.tax),
     tax_ratio: toNumber(row.tax_ratio),
+    tax_category: row.tax_category,
+    expected_tax_rate: toNumber(row.expected_tax_rate),
+    expected_tax: toNumber(row.expected_tax),
+    tax_gap: toNumber(row.tax_gap),
+    tax_paid_share: toNumber(row.tax_paid_share),
     destination_port: row.destination_port,
     shipment_date: row.shipment_date,
     risk: row.risk,
@@ -363,6 +373,9 @@ function buildFeatureImpact(rows) {
 
   const features = [
     "tax_ratio",
+    "tax_paid_share",
+    "tax_gap",
+    "expected_tax",
     "tax",
     "value_per_kg",
     "value_per_m3",
@@ -393,6 +406,10 @@ function buildNumericSummary(rows) {
     volume_m3: Number(average(rows, "volume_m3").toFixed(4)),
     tax: Number(average(rows, "tax").toFixed(2)),
     tax_ratio: Number(average(rows, "tax_ratio").toFixed(4)),
+    expected_tax_rate: Number(average(rows, "expected_tax_rate").toFixed(4)),
+    expected_tax: Number(average(rows, "expected_tax").toFixed(2)),
+    tax_gap: Number(average(rows, "tax_gap").toFixed(2)),
+    tax_paid_share: Number(average(rows, "tax_paid_share").toFixed(4)),
     density_kg_m3: Number(average(rows, "density_kg_m3").toFixed(2)),
   };
 }
@@ -484,7 +501,7 @@ function buildDashboardSummary() {
       },
       {
         label: "Model-ready Features",
-        value: "13",
+        value: "17",
         note: "After feature engineering",
       },
     ],
