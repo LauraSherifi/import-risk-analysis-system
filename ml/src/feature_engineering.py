@@ -12,6 +12,79 @@ FEATURE_DATA_PATH = PROCESSED_DIR / "cleaned_dataset.csv"
 RNG_SEED = 42
 MIN_TAX_RATE = 0.05
 MAX_TAX_RATE = 0.20
+DEFAULT_EXPECTED_TAX_RATE = 0.12
+
+EXPECTED_TAX_RATE_RULES = [
+    {
+        "category": "electronics",
+        "keywords": [
+            "camera",
+            "charger",
+            "headphone",
+            "speaker",
+            "television",
+            "phone",
+            "laptop",
+            "tablet",
+            "monitor",
+        ],
+        "rate": 0.18,
+    },
+    {
+        "category": "appliances",
+        "keywords": [
+            "coffee maker",
+            "microwave",
+            "vacuum",
+            "leaf blower",
+            "lawn mower",
+            "hedge trimmer",
+        ],
+        "rate": 0.16,
+    },
+    {
+        "category": "footwear_apparel",
+        "keywords": ["shoe", "boots", "clothing", "shirt", "jacket", "gloves"],
+        "rate": 0.14,
+    },
+    {
+        "category": "furniture",
+        "keywords": ["bed", "sofa", "armchair", "bookshelf", "chair", "table"],
+        "rate": 0.13,
+    },
+    {
+        "category": "outdoor_sports",
+        "keywords": [
+            "bicycle",
+            "tent",
+            "sleeping bag",
+            "backpack",
+            "yoga",
+            "resistance bands",
+        ],
+        "rate": 0.11,
+    },
+    {
+        "category": "food_beverage",
+        "keywords": ["coffee", "beans", "tea", "food"],
+        "rate": 0.08,
+    },
+    {
+        "category": "books_media",
+        "keywords": ["book", "guitar", "piano"],
+        "rate": 0.07,
+    },
+    {
+        "category": "shipping_supplies",
+        "keywords": ["box", "tube", "envelope", "pallet", "pallete"],
+        "rate": 0.05,
+    },
+    {
+        "category": "building_materials",
+        "keywords": ["cement", "tile", "steel", "wood", "lumber"],
+        "rate": 0.10,
+    },
+]
 
 FINAL_REQUIRED_COLUMNS = [
     "product_name",
@@ -30,6 +103,11 @@ FINAL_REQUIRED_COLUMNS = [
     "value_per_m3",
     "tax",
     "tax_ratio",
+    "tax_category",
+    "expected_tax_rate",
+    "expected_tax",
+    "tax_gap",
+    "tax_paid_share",
     "risk",
 ]
 
@@ -139,6 +217,41 @@ def add_tax_ratio_feature(df):
     return df
 
 
+def classify_tax_category(product_name):
+    product_text = str(product_name).lower()
+
+    for rule in EXPECTED_TAX_RATE_RULES:
+        if any(keyword in product_text for keyword in rule["keywords"]):
+            return rule["category"]
+
+    return "general_goods"
+
+
+def lookup_expected_tax_rate(tax_category):
+    for rule in EXPECTED_TAX_RATE_RULES:
+        if rule["category"] == tax_category:
+            return rule["rate"]
+
+    return DEFAULT_EXPECTED_TAX_RATE
+
+
+def add_expected_tax_features(df):
+    df = df.copy()
+
+    df["tax_category"] = df["product_name"].apply(classify_tax_category)
+    df["expected_tax_rate"] = df["tax_category"].apply(lookup_expected_tax_rate)
+    df["expected_tax"] = df["price_usd"] * df["expected_tax_rate"]
+    df["tax_gap"] = df["expected_tax"] - df["tax"]
+    df["tax_paid_share"] = safe_divide(df["tax"], df["expected_tax"], default=0)
+
+    df["expected_tax_rate"] = df["expected_tax_rate"].round(4)
+    df["expected_tax"] = df["expected_tax"].round(2)
+    df["tax_gap"] = df["tax_gap"].round(2)
+    df["tax_paid_share"] = df["tax_paid_share"].round(4)
+
+    return df
+
+
 def add_risk_column(df):
     df = df.copy()
 
@@ -203,6 +316,7 @@ def main():
     df = add_value_features(df)
     df = add_tax_feature(df)
     df = add_tax_ratio_feature(df)
+    df = add_expected_tax_features(df)
     df = add_risk_column(df)
 
     validation_summary = validate_final_dataset(df)
@@ -225,6 +339,11 @@ def main():
                 "value_per_m3",
                 "tax",
                 "tax_ratio",
+                "tax_category",
+                "expected_tax_rate",
+                "expected_tax",
+                "tax_gap",
+                "tax_paid_share",
                 "risk",
             ]
         ].head()
