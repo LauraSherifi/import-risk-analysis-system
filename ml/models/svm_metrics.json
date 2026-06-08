@@ -1,0 +1,73 @@
+{
+  "model": "SVM",
+  "features_used": [
+    "price_usd",
+    "weight_kg",
+    "volume_m3",
+    "max_dimension_m",
+    "dimension_sum_m",
+    "density_kg_m3",
+    "value_per_kg",
+    "value_per_m3"
+  ],
+  "rows_used": 80000,
+  "test_rows": 16000,
+  "accuracy": 0.1504,
+  "precision": 0.1493,
+  "recall": 0.9979,
+  "f1_score": 0.2597,
+  "confusion_matrix": {
+    "labels": [
+      "LOW RISK",
+      "HIGH RISK"
+    ],
+    "matrix": [
+      [
+        21,
+        13589
+      ],
+      [
+        5,
+        2385
+      ]
+    ]
+  },
+  "classification_report": {
+    "LOW RISK": {
+      "precision": 0.8076923076923077,
+      "recall": 0.0015429831006612785,
+      "f1-score": 0.003080082135523614,
+      "support": 13610.0
+    },
+    "HIGH RISK": {
+      "precision": 0.14930512082133468,
+      "recall": 0.997907949790795,
+      "f1-score": 0.2597473317360052,
+      "support": 2390.0
+    },
+    "accuracy": 0.150375,
+    "macro avg": {
+      "precision": 0.4784987142568212,
+      "recall": 0.49972546644572813,
+      "f1-score": 0.13141370693576443,
+      "support": 16000.0
+    },
+    "weighted avg": {
+      "precision": 0.7093457216534562,
+      "recall": 0.150375,
+      "f1-score": 0.04141975254459555,
+      "support": 16000.0
+    }
+  },
+  "baseline_accuracy": 0.8506,
+  "cv_f1_mean": 0.2076,
+  "cv_f1_std": 0.0201,
+  "decision_threshold": -0.187699,
+  "validation_precision": 0.1495,
+  "validation_recall": 1.0,
+  "validation_f1": 0.2601,
+  "best_params": {
+    "classifier__C": 0.1,
+    "classifier__class_weight": "balanced"
+  }
+}

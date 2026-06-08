@@ -1,0 +1,27 @@
+SVM MODEL EVALUATION REPORT
+==================================================
+
+              precision    recall  f1-score   support
+
+    LOW RISK       0.81      0.00      0.00     13610
+   HIGH RISK       0.15      1.00      0.26      2390
+
+    accuracy                           0.15     16000
+   macro avg       0.48      0.50      0.13     16000
+weighted avg       0.71      0.15      0.04     16000
+
+
+Accuracy: 0.1504
+Baseline Accuracy: 0.8506
+Decision Threshold: -0.187699
+Precision: 0.1493
+Recall: 0.9979
+F1 Score: 0.2597
+Validation Precision: 0.1495
+Validation Recall: 1.0
+Validation F1: 0.2601
+CV F1 Mean: 0.2076
+CV F1 Std: 0.0201
+Rows used: 80000
+Test rows: 16000
+Best params: {'classifier__C': 0.1, 'classifier__class_weight': 'balanced'}

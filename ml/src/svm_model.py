@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import sys
 
 import joblib
 import numpy as np
@@ -9,13 +10,26 @@ from sklearn.metrics import (
     classification_report,
     confusion_matrix,
     f1_score,
+    precision_recall_curve,
     precision_score,
     recall_score,
 )
-from sklearn.model_selection import GridSearchCV, StratifiedKFold, train_test_split
+from sklearn.dummy import DummyClassifier
+from sklearn.model_selection import (
+    GridSearchCV,
+    StratifiedKFold,
+    cross_val_score,
+    train_test_split,
+)
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import LinearSVC
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from svm_threshold import ThresholdedClassifier
 
 
 ML_DIR = Path(__file__).resolve().parents[1]
@@ -41,6 +55,8 @@ FEATURE_COLUMNS = [
 ]
 
 TARGET_COLUMN = "risk"
+TARGET_MAPPING = {"LOW RISK": 0, "HIGH RISK": 1}
+TARGET_NAMES = ["LOW RISK", "HIGH RISK"]
 
 
 def load_dataset():
@@ -64,7 +80,7 @@ def validate_dataset(df):
     if np.isinf(numeric_df.to_numpy()).sum() > 0:
         raise ValueError("Dataset contains infinite values.")
 
-    allowed_targets = {"HIGH RISK", "LOW RISK"}
+    allowed_targets = set(TARGET_MAPPING.keys())
     invalid_targets = set(df[TARGET_COLUMN].unique()).difference(allowed_targets)
 
     if invalid_targets:
@@ -86,7 +102,11 @@ def sample_dataset_for_svm(df):
 
 def prepare_train_test_data(df):
     X = df[FEATURE_COLUMNS]
-    y = df[TARGET_COLUMN]
+    y = df[TARGET_COLUMN].map(TARGET_MAPPING)
+
+    if y.isna().any():
+        invalid_targets = sorted(df.loc[y.isna(), TARGET_COLUMN].unique())
+        raise ValueError(f"Unexpected target values after mapping: {invalid_targets}")
 
     return train_test_split(
         X,
@@ -134,27 +154,73 @@ def tune_svm(X_train, y_train):
     return search
 
 
-def evaluate_model(model, X_test, y_test):
+def find_best_threshold(model, X_validation, y_validation):
+    scores = model.decision_function(X_validation)
+    precision, recall, thresholds = precision_recall_curve(y_validation, scores)
+
+    if len(thresholds) == 0:
+        return 0.0, {
+            "validation_precision": 0.0,
+            "validation_recall": 0.0,
+            "validation_f1": 0.0,
+        }
+
+    f1_scores = np.divide(
+        2 * precision[1:] * recall[1:],
+        precision[1:] + recall[1:],
+        out=np.zeros_like(precision[1:], dtype=float),
+        where=(precision[1:] + recall[1:]) != 0,
+    )
+    best_index = int(np.argmax(f1_scores))
+    best_threshold = float(thresholds[best_index])
+
+    return best_threshold, {
+        "validation_precision": round(float(precision[best_index + 1]), 4),
+        "validation_recall": round(float(recall[best_index + 1]), 4),
+        "validation_f1": round(float(f1_scores[best_index]), 4),
+    }
+
+
+def evaluate_baseline(X_train, y_train, X_test, y_test):
+    baseline_model = DummyClassifier(strategy="most_frequent")
+    baseline_model.fit(X_train, y_train)
+    baseline_predictions = baseline_model.predict(X_test)
+
+    return round(float(accuracy_score(y_test, baseline_predictions)), 4)
+
+
+def cross_validate_model(X, y):
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    model = build_svm_model()
+    scores = cross_val_score(model, X, y, cv=cv, scoring="f1", n_jobs=1)
+
+    return {
+        "cv_f1_mean": round(float(scores.mean()), 4),
+        "cv_f1_std": round(float(scores.std()), 4),
+    }
+
+
+def evaluate_model(model, X_test, y_test, total_rows):
     y_pred = model.predict(X_test)
-    labels = ["LOW RISK", "HIGH RISK"]
 
     metrics = {
         "model": "SVM",
         "features_used": FEATURE_COLUMNS,
-        "rows_used": int(len(X_test) / 0.2),
+        "rows_used": int(total_rows),
         "test_rows": int(len(X_test)),
         "accuracy": round(float(accuracy_score(y_test, y_pred)), 4),
         "precision": round(float(precision_score(y_test, y_pred, zero_division=0)), 4),
         "recall": round(float(recall_score(y_test, y_pred, zero_division=0)), 4),
         "f1_score": round(float(f1_score(y_test, y_pred, zero_division=0)), 4),
         "confusion_matrix": {
-            "labels": labels,
-            "matrix": confusion_matrix(y_test, y_pred, labels=labels).tolist(),
+            "labels": TARGET_NAMES,
+            "matrix": confusion_matrix(y_test, y_pred, labels=[0, 1]).tolist(),
         },
         "classification_report": classification_report(
             y_test,
             y_pred,
-            labels=labels,
+            labels=[0, 1],
+            target_names=TARGET_NAMES,
             output_dict=True,
             zero_division=0,
         ),
@@ -163,7 +229,8 @@ def evaluate_model(model, X_test, y_test):
     report_text = classification_report(
         y_test,
         y_pred,
-        labels=labels,
+        labels=[0, 1],
+        target_names=TARGET_NAMES,
         zero_division=0,
     )
 
@@ -184,9 +251,16 @@ def save_outputs(model, metrics, report_text):
         report_file.write(report_text)
         report_file.write("\n\n")
         report_file.write(f"Accuracy: {metrics['accuracy']}\n")
+        report_file.write(f"Baseline Accuracy: {metrics['baseline_accuracy']}\n")
+        report_file.write(f"Decision Threshold: {metrics['decision_threshold']}\n")
         report_file.write(f"Precision: {metrics['precision']}\n")
         report_file.write(f"Recall: {metrics['recall']}\n")
         report_file.write(f"F1 Score: {metrics['f1_score']}\n")
+        report_file.write(f"Validation Precision: {metrics['validation_precision']}\n")
+        report_file.write(f"Validation Recall: {metrics['validation_recall']}\n")
+        report_file.write(f"Validation F1: {metrics['validation_f1']}\n")
+        report_file.write(f"CV F1 Mean: {metrics['cv_f1_mean']}\n")
+        report_file.write(f"CV F1 Std: {metrics['cv_f1_std']}\n")
         report_file.write(f"Rows used: {metrics['rows_used']}\n")
         report_file.write(f"Test rows: {metrics['test_rows']}\n")
         report_file.write(f"Best params: {metrics.get('best_params', {})}\n")
@@ -198,11 +272,30 @@ def main():
 
     df = sample_dataset_for_svm(df)
     X_train, X_test, y_train, y_test = prepare_train_test_data(df)
+    X_fit, X_validation, y_fit, y_validation = train_test_split(
+        X_train,
+        y_train,
+        test_size=0.25,
+        random_state=RANDOM_STATE,
+        stratify=y_train,
+    )
 
-    search = tune_svm(X_train, y_train)
-    model = search.best_estimator_
+    search = tune_svm(X_fit, y_fit)
+    best_pipeline = search.best_estimator_
+    best_threshold, threshold_metrics = find_best_threshold(
+        best_pipeline,
+        X_validation,
+        y_validation,
+    )
 
-    metrics, report_text = evaluate_model(model, X_test, y_test)
+    best_pipeline.fit(X_train, y_train)
+    model = ThresholdedClassifier(pipeline=best_pipeline, threshold=best_threshold)
+
+    metrics, report_text = evaluate_model(model, X_test, y_test, len(df))
+    metrics["baseline_accuracy"] = evaluate_baseline(X_train, y_train, X_test, y_test)
+    metrics.update(cross_validate_model(df[FEATURE_COLUMNS], df[TARGET_COLUMN].map(TARGET_MAPPING)))
+    metrics["decision_threshold"] = round(float(best_threshold), 6)
+    metrics.update(threshold_metrics)
     metrics["best_params"] = search.best_params_
     save_outputs(model, metrics, report_text)
 
@@ -211,9 +304,16 @@ def main():
     print(f"Metrics saved to: {METRICS_PATH}")
     print(f"Report saved to: {REPORT_PATH}")
     print(f"Accuracy: {metrics['accuracy']}")
+    print(f"Baseline Accuracy: {metrics['baseline_accuracy']}")
+    print(f"Decision Threshold: {metrics['decision_threshold']}")
     print(f"Precision: {metrics['precision']}")
     print(f"Recall: {metrics['recall']}")
     print(f"F1 Score: {metrics['f1_score']}")
+    print(f"Validation Precision: {metrics['validation_precision']}")
+    print(f"Validation Recall: {metrics['validation_recall']}")
+    print(f"Validation F1: {metrics['validation_f1']}")
+    print(f"CV F1 Mean: {metrics['cv_f1_mean']}")
+    print(f"CV F1 Std: {metrics['cv_f1_std']}")
     print(f"Best Params: {metrics['best_params']}")
 
 
