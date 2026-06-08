@@ -43,26 +43,6 @@ function getRouteMeta(pathname) {
           "What is the learning purpose of these mini games?",
         ],
       };
-    case "/app/models/knn":
-      return {
-        label: "KNN Model",
-        prompt: "Ask about KNN metrics, confusion matrix results, or why this model matters.",
-        suggestions: [
-          "What does this KNN page show?",
-          "How should I explain KNN performance here?",
-          "What do precision and recall mean on this page?",
-        ],
-      };
-    case "/app/models/logistic-regression":
-      return {
-        label: "Logistic Regression Model",
-        prompt: "Ask about the benchmark model, metrics, or feature usage.",
-        suggestions: [
-          "How should I explain this Logistic Regression page?",
-          "What are the strengths of this model here?",
-          "Which features does this model use?",
-        ],
-      };
     case "/app/risk-map":
       return {
         label: "Risk Map",
@@ -81,6 +61,16 @@ function getRouteMeta(pathname) {
           "Is this neural network page fully connected?",
           "How should I describe this page in the demo?",
           "What is still missing here?",
+        ],
+      };
+    case "/app/models/svm":
+      return {
+        label: "SVM Model",
+        prompt: "Ask about SVM metrics, the confusion matrix, or why this model behaves the way it does.",
+        suggestions: [
+          "What does this SVM page show?",
+          "How should I explain the SVM performance?",
+          "Why is precision so low here?",
         ],
       };
     default:

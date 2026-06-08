@@ -331,7 +331,7 @@ function MiniTestingLabPage() {
       high: 0,
     },
     model: {
-      name: "KNN Classifier",
+      name: "SVM Classifier",
       accuracy: 0,
       macroF1: 0,
       rowsUsed: 0,
@@ -443,8 +443,9 @@ function MiniTestingLabPage() {
     algorithmMetrics[0] || {
       id: "accuracy",
       title: "Accuracy",
-      knn: 0,
-      logistic: 0,
+      decisionTree: 0,
+      neuralNetwork: 0,
+      svm: 0,
       description: "Live model comparison is loading.",
       recommendation: "Live model comparison is loading.",
     };
@@ -933,8 +934,8 @@ function MiniTestingLabPage() {
         <div>
           <h1>Mini Testing Lab</h1>
           <p>
-            Interactive checks built from the real shipment dataset, saved KNN
-            metrics, and Logistic Regression evaluation artifacts in this
+            Interactive checks built from the real shipment dataset, saved
+            Decision Tree, Neural Network, and SVM evaluation artifacts in this
             project.
           </p>
         </div>
@@ -1089,8 +1090,8 @@ function MiniTestingLabPage() {
             <div>
               <h3>Algorithm Results</h3>
               <p>
-                Compare the real saved evaluation results for KNN and Logistic
-                Regression from this project&apos;s model artifacts.
+                Compare the real saved evaluation results for Decision Tree,
+                Neural Network, and SVM from this project&apos;s model artifacts.
               </p>
             </div>
           </div>
@@ -1116,29 +1117,40 @@ function MiniTestingLabPage() {
 
           <div className="lab-confidence-grid">
             <div className="lab-confidence-card">
-              <span>KNN result</span>
-              <strong>{selectedMetric.knn.toFixed(2)}%</strong>
+              <span>Decision Tree result</span>
+              <strong>{selectedMetric.decisionTree.toFixed(2)}%</strong>
               <div className="bar-track">
                 <div
                   className="bar-fill low-risk"
-                  style={{ width: `${selectedMetric.knn}%` }}
+                  style={{ width: `${selectedMetric.decisionTree}%` }}
                 />
               </div>
             </div>
 
             <div className="lab-confidence-card">
-              <span>Logistic Regression result</span>
-              <strong>{selectedMetric.logistic.toFixed(2)}%</strong>
+              <span>Neural Network result</span>
+              <strong>{selectedMetric.neuralNetwork.toFixed(2)}%</strong>
               <div className="bar-track">
                 <div
                   className="bar-fill high-risk"
-                  style={{ width: `${selectedMetric.logistic}%` }}
+                  style={{ width: `${selectedMetric.neuralNetwork}%` }}
                 />
               </div>
             </div>
 
             <div className="lab-confidence-card">
-              <span>KNN test rows</span>
+              <span>SVM result</span>
+              <strong>{selectedMetric.svm.toFixed(2)}%</strong>
+              <div className="bar-track">
+                <div
+                  className="bar-fill model-score"
+                  style={{ width: `${selectedMetric.svm}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="lab-confidence-card">
+              <span>SVM test rows</span>
               <strong>
                 {formatCompactNumber(predictionLabDataset.model.testRows)}
               </strong>

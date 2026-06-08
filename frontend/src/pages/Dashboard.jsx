@@ -112,23 +112,28 @@ function Dashboard() {
   const sampleRows = dashboardData?.sample_rows ?? [];
   const featureImpact = dashboardData?.feature_impact ?? [];
 
-  const knnModel =
-    dashboardData?.models?.knn_latest ??
-    dashboardData?.models?.knn_demo ??
-    null;
+  const decisionTreeModel = dashboardData?.models?.decision_tree ?? null;
+  const neuralNetworkModel = dashboardData?.models?.neural_network ?? null;
+  const svmModel = dashboardData?.models?.svm ?? null;
 
-  const logisticModel = dashboardData?.models?.logistic_regression ?? null;
+  const decisionTreeAccuracy = toPercentNumber(decisionTreeModel?.accuracy);
+  const decisionTreeF1 = toPercentNumber(decisionTreeModel?.f1_score);
+  const decisionTreePrecision = toPercentNumber(decisionTreeModel?.precision);
+  const decisionTreeRecall = toPercentNumber(decisionTreeModel?.recall);
 
-  const knnAccuracy = toPercentNumber(knnModel?.accuracy);
-  const knnMacroF1 = toPercentNumber(getMacroF1(knnModel));
-  const knnWeightedF1 = toPercentNumber(getWeightedF1(knnModel));
-  const knnPrecision = toPercentNumber(getHighRiskMetric(knnModel, "precision"));
-  const knnRecall = toPercentNumber(getHighRiskMetric(knnModel, "recall"));
+  const neuralNetworkAccuracy = toPercentNumber(neuralNetworkModel?.accuracy);
+  const neuralNetworkF1 = toPercentNumber(neuralNetworkModel?.f1_score);
+  const neuralNetworkPrecision = toPercentNumber(
+    neuralNetworkModel?.classification_report?.["HIGH RISK"]?.precision
+  );
+  const neuralNetworkRecall = toPercentNumber(
+    neuralNetworkModel?.classification_report?.["HIGH RISK"]?.recall
+  );
 
-  const logisticAccuracy = toPercentNumber(logisticModel?.accuracy);
-  const logisticF1 = toPercentNumber(logisticModel?.f1_score);
-  const logisticPrecision = toPercentNumber(logisticModel?.precision);
-  const logisticRecall = toPercentNumber(logisticModel?.recall);
+  const svmAccuracy = toPercentNumber(svmModel?.accuracy);
+  const svmF1 = toPercentNumber(svmModel?.f1_score);
+  const svmPrecision = toPercentNumber(svmModel?.precision);
+  const svmRecall = toPercentNumber(svmModel?.recall);
 
   const circularStats = [
     {
@@ -148,68 +153,95 @@ function Dashboard() {
       className: "circle-high",
     },
     {
-      label: "KNN Accuracy",
-      value: knnAccuracy,
-      detail: "Best completed model",
+      label: "Decision Tree",
+      value: decisionTreeAccuracy,
+      detail: "Completed model",
       className: "circle-model",
     },
     {
-      label: "Logistic Accuracy",
-      value: logisticAccuracy,
-      detail: "Benchmark model",
+      label: "Neural Network",
+      value: neuralNetworkAccuracy,
+      detail: "Completed model",
       className: "circle-benchmark",
+    },
+    {
+      label: "SVM Accuracy",
+      value: svmAccuracy,
+      detail: "Risk-focused model",
+      className: "circle-model",
     },
   ];
 
   const completedModels = [
     {
-      name: "KNN",
-      role: "Best completed classifier",
+      name: "Decision Tree",
+      role: "Interpretable classifier",
       status: "Completed",
-      accuracy: knnAccuracy,
-      f1: knnMacroF1,
-      precision: knnPrecision,
-      recall: knnRecall,
+      accuracy: decisionTreeAccuracy,
+      f1: decisionTreeF1,
+      precision: decisionTreePrecision,
+      recall: decisionTreeRecall,
       insight:
-        "KNN is currently the strongest completed model in the interface. For now, the dashboard uses the latest KNN metrics file.",
+        "Decision Tree is useful for clear interpretation and feature tracing.",
     },
     {
-      name: "Logistic Regression",
-      role: "Interpretable benchmark model",
+      name: "Neural Network",
+      role: "Non-linear classifier",
       status: "Completed",
-      accuracy: logisticAccuracy,
-      f1: logisticF1,
-      precision: logisticPrecision,
-      recall: logisticRecall,
+      accuracy: neuralNetworkAccuracy,
+      f1: neuralNetworkF1,
+      precision: neuralNetworkPrecision,
+      recall: neuralNetworkRecall,
       insight:
-        "Logistic Regression is kept as a transparent benchmark model, but its performance is weaker than KNN.",
+        "Neural Network captures more complex patterns in the cleaned shipment data.",
+    },
+    {
+      name: "SVM",
+      role: "Boundary-focused classifier",
+      status: "Completed",
+      accuracy: svmAccuracy,
+      f1: svmF1,
+      precision: svmPrecision,
+      recall: svmRecall,
+      insight:
+        "SVM is the strongest model for catching risky shipments aggressively.",
     },
   ];
 
   const metricsMatrix = [
     {
       metric: "Accuracy",
-      knn: `${knnAccuracy.toFixed(2)}%`,
-      logistic: `${logisticAccuracy.toFixed(2)}%`,
+      decisionTree: `${decisionTreeAccuracy.toFixed(2)}%`,
+      neuralNetwork: `${neuralNetworkAccuracy.toFixed(2)}%`,
+      svm: `${svmAccuracy.toFixed(2)}%`,
     },
     {
       metric: "F1 Score",
-      knn: `${knnMacroF1.toFixed(2)}%`,
-      logistic: `${logisticF1.toFixed(2)}%`,
+      decisionTree: `${decisionTreeF1.toFixed(2)}%`,
+      neuralNetwork: `${neuralNetworkF1.toFixed(2)}%`,
+      svm: `${svmF1.toFixed(2)}%`,
     },
     {
       metric: "Precision",
-      knn: `${knnPrecision.toFixed(2)}%`,
-      logistic: `${logisticPrecision.toFixed(2)}%`,
+      decisionTree: `${decisionTreePrecision.toFixed(2)}%`,
+      neuralNetwork: `${neuralNetworkPrecision.toFixed(2)}%`,
+      svm: `${svmPrecision.toFixed(2)}%`,
     },
     {
       metric: "Recall",
-      knn: `${knnRecall.toFixed(2)}%`,
-      logistic: `${logisticRecall.toFixed(2)}%`,
+      decisionTree: `${decisionTreeRecall.toFixed(2)}%`,
+      neuralNetwork: `${neuralNetworkRecall.toFixed(2)}%`,
+      svm: `${svmRecall.toFixed(2)}%`,
     },
   ];
 
-  const matrix = getMatrix(knnModel);
+  const bestModel =
+    [decisionTreeModel, neuralNetworkModel, svmModel]
+      .filter(Boolean)
+      .sort((left, right) => (Number(right?.accuracy ?? 0) - Number(left?.accuracy ?? 0)))[0] ??
+    decisionTreeModel;
+
+  const matrix = getMatrix(bestModel);
 
   const confusionMatrix = [
     {
@@ -336,12 +368,13 @@ function Dashboard() {
 
           <div className="highlight-insight">
             <span>Best Performing Model</span>
-            <strong>KNN</strong>
+            <strong>{bestModel?.model || "Decision Tree"}</strong>
             <p>
-              KNN currently outperforms Logistic Regression across the main
-              evaluation metrics. The current risk label is simulated, so model
-              performance should be presented as prototype evaluation rather
-              than real-world fraud detection accuracy.
+              The strongest completed model varies by metric, so the dashboard
+              now compares Decision Tree, Neural Network, and SVM only. The
+              current risk label is simulated, so model performance should be
+              presented as prototype evaluation rather than real-world fraud
+              detection accuracy.
             </p>
           </div>
         </div>
@@ -350,13 +383,12 @@ function Dashboard() {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h3>Completed Model Comparison</h3>
-            <p>
-              Comparison of the models that are currently completed and visible
-              in the system.
-            </p>
+              <h3>Completed Model Comparison</h3>
+              <p>
+              Comparison of the three models currently visible in the system.
+              </p>
+            </div>
           </div>
-        </div>
 
         <div className="model-comparison-grid">
           {completedModels.map((model) => (
@@ -387,7 +419,7 @@ function Dashboard() {
         <div className="panel">
           <div className="panel-header">
             <div>
-              <h3>KNN Confusion Matrix</h3>
+              <h3>Best Model Confusion Matrix</h3>
               <p>
                 Model evaluation matrix showing correct and incorrect
                 classifications.
@@ -435,15 +467,17 @@ function Dashboard() {
           <div className="metrics-heatmap">
             <div className="heatmap-row heatmap-header">
               <span>Metric</span>
-              <strong>KNN</strong>
-              <strong>Logistic</strong>
+              <strong>Decision Tree</strong>
+              <strong>Neural Net</strong>
+              <strong>SVM</strong>
             </div>
 
             {metricsMatrix.map((row) => (
               <div className="heatmap-row" key={row.metric}>
                 <span>{row.metric}</span>
-                <strong className="heatmap-strong">{row.knn}</strong>
-                <strong className="heatmap-weak">{row.logistic}</strong>
+                <strong className="heatmap-strong">{row.decisionTree}</strong>
+                <strong className="heatmap-weak">{row.neuralNetwork}</strong>
+                <strong className="heatmap-weak">{row.svm}</strong>
               </div>
             ))}
           </div>

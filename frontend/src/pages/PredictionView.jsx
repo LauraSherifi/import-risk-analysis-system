@@ -78,7 +78,7 @@ const defaultPredictionLabDataset = {
     high: 0,
   },
   model: {
-    name: "KNN",
+    name: "SVM",
     accuracy: 0,
     testRows: 0,
   },
