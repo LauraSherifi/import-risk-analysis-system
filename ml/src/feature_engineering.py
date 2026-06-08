@@ -12,6 +12,15 @@ FEATURE_DATA_PATH = PROCESSED_DIR / "cleaned_dataset.csv"
 RNG_SEED = 42
 MIN_TAX_RATE = 0.05
 MAX_TAX_RATE = 0.20
+DEFAULT_EXPECTED_TAX_RATE = 0.125
+EXPECTED_TAX_RATES_BY_COUNTRY = {
+    "China": 0.13,
+    "Germany": 0.11,
+    "Japan": 0.10,
+    "Singapore": 0.12,
+    "South Korea": 0.115,
+    "United States": 0.09,
+}
 
 FINAL_REQUIRED_COLUMNS = [
     "product_name",
@@ -30,6 +39,12 @@ FINAL_REQUIRED_COLUMNS = [
     "value_per_m3",
     "tax",
     "tax_ratio",
+    "expected_tax_rate",
+    "tax_gap",
+    "tax_paid_share",
+    "tax_per_kg",
+    "tax_per_m3",
+    "log_tax",
     "risk",
 ]
 
@@ -139,9 +154,49 @@ def add_tax_ratio_feature(df):
     return df
 
 
+def infer_country_from_port(port_name):
+    if not isinstance(port_name, str):
+        return None
+
+    if "(" not in port_name or ")" not in port_name:
+        return None
+
+    return port_name.rsplit("(", 1)[-1].rstrip(")")
+
+
+def add_tax_context_features(df):
+    df = df.copy()
+
+    countries = df["destination_port"].apply(infer_country_from_port)
+    df["expected_tax_rate"] = countries.map(EXPECTED_TAX_RATES_BY_COUNTRY)
+    df["expected_tax_rate"] = df["expected_tax_rate"].fillna(DEFAULT_EXPECTED_TAX_RATE)
+
+    expected_tax = df["price_usd"] * df["expected_tax_rate"]
+    df["tax_gap"] = df["tax"] - expected_tax
+    df["tax_paid_share"] = safe_divide(df["tax"], df["price_usd"] + df["tax"])
+    df["tax_per_kg"] = safe_divide(df["tax"], df["weight_kg"])
+    df["tax_per_m3"] = safe_divide(df["tax"], df["volume_m3"])
+    df["log_tax"] = np.log1p(df["tax"])
+
+    context_columns = [
+        "expected_tax_rate",
+        "tax_gap",
+        "tax_paid_share",
+        "tax_per_kg",
+        "tax_per_m3",
+        "log_tax",
+    ]
+
+    df[context_columns] = df[context_columns].round(4)
+
+    return df
+
+
 def add_risk_column(df):
     df = df.copy()
 
+    # This target is still derived from tax_ratio, so tax-ratio leakage must be
+    # handled by downstream model feature selection until the label is redefined.
     low_risk_threshold = df["tax_ratio"].quantile(0.15)
 
     df["risk"] = df["tax_ratio"].apply(
@@ -203,6 +258,7 @@ def main():
     df = add_value_features(df)
     df = add_tax_feature(df)
     df = add_tax_ratio_feature(df)
+    df = add_tax_context_features(df)
     df = add_risk_column(df)
 
     validation_summary = validate_final_dataset(df)
@@ -225,6 +281,10 @@ def main():
                 "value_per_m3",
                 "tax",
                 "tax_ratio",
+                "expected_tax_rate",
+                "tax_gap",
+                "tax_per_kg",
+                "tax_per_m3",
                 "risk",
             ]
         ].head()
