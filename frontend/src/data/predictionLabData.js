@@ -14,11 +14,11 @@ export const predictionLabDataset = {
     high: 0.1625,
   },
   model: {
-    name: "KNN Classifier",
-    accuracy: 98.58,
-    macroF1: 97.18,
-    rowsUsed: 60000,
-    testRows: 12000,
+    name: "SVM Classifier",
+    accuracy: 95.59,
+    macroF1: 84.7,
+    rowsUsed: 80000,
+    testRows: 16000,
   },
   topPorts: [
     { name: "Port of Busan (South Korea)", shipmentCount: 53157 },

@@ -459,13 +459,9 @@ function buildDatasetSummary() {
 function buildDashboardSummary() {
   const dataset = buildDatasetSummary();
 
-  const knnDemo = readJsonFile("knn_demo_metrics.json");
-  const knnCheck = readJsonFile("knn_check_metrics.json");
-  const knnLatest = readJsonFile("knn_metrics.json");
-  const logisticRegression = readJsonFile("logistic_regression_metrics.json");
-  const randomForest = readJsonFile("random_forest_metrics.json");
-  const neuralNetwork = readJsonFile("neural_network_metrics.json");
   const decisionTree = readJsonFile("decision_tree_metrics.json");
+  const neuralNetwork = readJsonFile("neural_network_metrics.json");
+  const svm = readJsonFile("svm_metrics.json");
   const highRiskShare =
     dataset.risk_distribution.find((item) => item.label === "HIGH RISK")
       ?.percentage ?? 0;
@@ -491,8 +487,8 @@ function buildDashboardSummary() {
       },
       {
         label: "Completed Models",
-        value: "4",
-        note: "Logistic Regression, Random Forest, Neural Network and Decision Tree",
+        value: "3",
+        note: "Decision Tree, Neural Network, and SVM",
       },
       {
         label: "High Risk Share",
@@ -514,13 +510,9 @@ function buildDashboardSummary() {
     feature_impact: dataset.feature_impact,
     data_quality: dataset.data_quality,
     models: {
-      knn_demo: knnDemo,
-      knn_check: knnCheck,
-      knn_latest: knnLatest,
-      logistic_regression: logisticRegression,
-      neural_network: neuralNetwork,
-      random_forest: randomForest,
       decision_tree: decisionTree,
+      neural_network: neuralNetwork,
+      svm,
     },
   };
 }
@@ -598,6 +590,25 @@ function buildNeuralNetworkData() {
   };
 }
 
+function buildSvmModelData() {
+  const metrics = readJsonFile("svm_metrics.json");
+
+  return {
+    metrics,
+    report: readTextFile("svm_report.txt"),
+    features_used: metrics?.features_used ?? [
+      "price_usd",
+      "weight_kg",
+      "volume_m3",
+      "max_dimension_m",
+      "dimension_sum_m",
+      "density_kg_m3",
+      "value_per_kg",
+      "value_per_m3",
+    ],
+  };
+}
+
 function buildDecisionTreeData() {
   const metrics = readJsonFile("decision_tree_metrics.json");
 
@@ -623,77 +634,92 @@ function buildDecisionTreeData() {
 }
 
 function buildModelComparisonMetrics() {
-  const knnMetrics = readJsonFile("knn_metrics.json") || readJsonFile("knn_demo_metrics.json") || {};
-  const logisticMetrics = readJsonFile("logistic_regression_metrics.json") || {};
+  const decisionTreeMetrics = readJsonFile("decision_tree_metrics.json") || {};
+  const neuralNetworkMetrics = readJsonFile("neural_network_metrics.json") || {};
+  const svmMetrics = readJsonFile("svm_metrics.json") || {};
 
-  const knnAccuracy = round(knnMetrics.accuracy * 100, 2);
-  const logisticAccuracy = round(logisticMetrics.accuracy * 100, 2);
-  const knnMacroF1 = round(
-    (knnMetrics.macro_f1 ??
-      knnMetrics.classification_report?.["macro avg"]?.["f1-score"] ??
-      0) * 100,
+  const decisionTreeAccuracy = round((decisionTreeMetrics.accuracy ?? 0) * 100, 2);
+  const neuralNetworkAccuracy = round((neuralNetworkMetrics.accuracy ?? 0) * 100, 2);
+  const svmAccuracy = round((svmMetrics.accuracy ?? 0) * 100, 2);
+
+  const decisionTreeF1 = round((decisionTreeMetrics.f1_score ?? 0) * 100, 2);
+  const neuralNetworkF1 = round((neuralNetworkMetrics.f1_score ?? 0) * 100, 2);
+  const svmF1 = round((svmMetrics.f1_score ?? 0) * 100, 2);
+
+  const decisionTreePrecision = round((decisionTreeMetrics.precision ?? 0) * 100, 2);
+  const neuralNetworkPrecision = round(
+    (neuralNetworkMetrics.classification_report?.["HIGH RISK"]?.precision ?? 0) * 100,
     2
   );
-  const logisticF1 = round((logisticMetrics.f1_score ?? 0) * 100, 2);
-  const knnPrecision = round(
-    (knnMetrics.classification_report?.["HIGH RISK"]?.precision ?? 0) * 100,
+  const svmPrecision = round((svmMetrics.precision ?? 0) * 100, 2);
+
+  const decisionTreeRecall = round((decisionTreeMetrics.recall ?? 0) * 100, 2);
+  const neuralNetworkRecall = round(
+    (neuralNetworkMetrics.classification_report?.["HIGH RISK"]?.recall ?? 0) * 100,
     2
   );
-  const logisticPrecision = round((logisticMetrics.precision ?? 0) * 100, 2);
-  const knnRecall = round(
-    (knnMetrics.classification_report?.["HIGH RISK"]?.recall ?? 0) * 100,
-    2
-  );
-  const logisticRecall = round((logisticMetrics.recall ?? 0) * 100, 2);
+  const svmRecall = round((svmMetrics.recall ?? 0) * 100, 2);
 
   return [
     {
       id: "accuracy",
       title: "Accuracy",
-      knn: knnAccuracy,
-      logistic: logisticAccuracy,
+      decisionTree: decisionTreeAccuracy,
+      neuralNetwork: neuralNetworkAccuracy,
+      svm: svmAccuracy,
       description:
         "Accuracy compares how often each saved model correctly classifies shipment records across the evaluation split.",
       recommendation:
-        knnAccuracy >= logisticAccuracy
-          ? "KNN currently leads on overall correctness, so it is the better fit for the interactive labs."
-          : "Logistic Regression currently leads on overall correctness, so it deserves equal attention in the labs.",
+        decisionTreeAccuracy >= neuralNetworkAccuracy && decisionTreeAccuracy >= svmAccuracy
+          ? "Decision Tree currently leads on overall correctness, so it is the strongest reference point."
+          : neuralNetworkAccuracy >= svmAccuracy
+            ? "Neural Network currently leads on overall correctness, so it deserves the spotlight."
+            : "SVM currently leads on overall correctness, so it should be highlighted more.",
     },
     {
       id: "f1",
       title: "F1 Score",
-      knn: knnMacroF1,
-      logistic: logisticF1,
+      decisionTree: decisionTreeF1,
+      neuralNetwork: neuralNetworkF1,
+      svm: svmF1,
       description:
         "F1 Score balances precision and recall so high-risk detection is not judged by accuracy alone.",
       recommendation:
-        knnMacroF1 >= logisticF1
-          ? "KNN keeps the stronger balance across classes, which makes it more reliable for risk-focused exercises."
-          : "Logistic Regression has the stronger balance here, so its behavior should be highlighted more clearly.",
+        decisionTreeF1 >= neuralNetworkF1 && decisionTreeF1 >= svmF1
+          ? "Decision Tree has the strongest balance here, which makes it easy to explain."
+          : neuralNetworkF1 >= svmF1
+            ? "Neural Network has the strongest balance here, so its behavior should be highlighted more clearly."
+            : "SVM has the strongest balance here, which makes it a useful risk-focused reference.",
     },
     {
       id: "precision",
       title: "Precision",
-      knn: knnPrecision,
-      logistic: logisticPrecision,
+      decisionTree: decisionTreePrecision,
+      neuralNetwork: neuralNetworkPrecision,
+      svm: svmPrecision,
       description:
         "Precision shows how trustworthy a HIGH RISK prediction is once the model raises an alert.",
       recommendation:
-        knnPrecision >= logisticPrecision
-          ? "KNN produces cleaner risk flags, so students can trust its warnings more often."
-          : "Logistic Regression produces cleaner risk flags here, so its alerts may be more trustworthy.",
+        decisionTreePrecision >= neuralNetworkPrecision && decisionTreePrecision >= svmPrecision
+          ? "Decision Tree produces the cleanest risk flags here."
+          : neuralNetworkPrecision >= svmPrecision
+            ? "Neural Network produces the cleanest risk flags here."
+            : "SVM produces the cleanest risk flags here.",
     },
     {
       id: "recall",
       title: "Recall",
-      knn: knnRecall,
-      logistic: logisticRecall,
+      decisionTree: decisionTreeRecall,
+      neuralNetwork: neuralNetworkRecall,
+      svm: svmRecall,
       description:
         "Recall measures how many of the truly risky shipments the model manages to catch.",
       recommendation:
-        knnRecall >= logisticRecall
-          ? "KNN recovers more risky shipments, which is valuable when the goal is to avoid missing suspicious imports."
-          : "Logistic Regression recovers more risky shipments here, which matters when missing a risky case is costly.",
+        decisionTreeRecall >= neuralNetworkRecall && decisionTreeRecall >= svmRecall
+          ? "Decision Tree recovers the most risky shipments here."
+          : neuralNetworkRecall >= svmRecall
+            ? "Neural Network recovers the most risky shipments here."
+            : "SVM recovers the most risky shipments here, which matters when missing risk is costly.",
     },
   ];
 }
@@ -717,7 +743,7 @@ function buildPredictionLabContext() {
   };
 
   const sampleCollections = buildSampleCollections(normalizedSamples, quartiles);
-  const knnMetrics = readJsonFile("knn_metrics.json") || readJsonFile("knn_demo_metrics.json") || {};
+  const svmMetrics = readJsonFile("svm_metrics.json") || {};
 
   predictionLabContextCache = {
     totalShipments: dataset.total_records,
@@ -735,11 +761,11 @@ function buildPredictionLabContext() {
     averageTaxUsd: round(dataset.numeric_summary.tax, 2),
     taxRatioQuartiles: quartiles,
     model: {
-      name: knnMetrics.model || "KNN Classifier",
-      accuracy: round((knnMetrics.accuracy ?? 0) * 100, 2),
-      macroF1: round((knnMetrics.macro_f1 ?? 0) * 100, 2),
-      rowsUsed: Number(knnMetrics.rows_used ?? 0),
-      testRows: Number(knnMetrics.test_rows ?? 0),
+      name: svmMetrics.model || "SVM Classifier",
+      accuracy: round((svmMetrics.accuracy ?? 0) * 100, 2),
+      macroF1: round((svmMetrics.f1_score ?? 0) * 100, 2),
+      rowsUsed: Number(svmMetrics.rows_used ?? 0),
+      testRows: Number(svmMetrics.test_rows ?? 0),
     },
     topPorts: dataset.top_ports.map((item) => ({
       name: item.port,
@@ -773,6 +799,7 @@ module.exports = {
   buildRandomForestData,
   buildDecisionTreeData,
   buildNeuralNetworkData,
+  buildSvmModelData,
   buildModelComparisonMetrics,
   buildPredictionLabContext,
   buildDebugPaths,

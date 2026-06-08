@@ -11,6 +11,7 @@ const {
   buildRandomForestData,
   buildDecisionTreeData,
   buildNeuralNetworkData,
+  buildSvmModelData,
   buildModelComparisonMetrics,
   buildPredictionLabContext,
   buildDebugPaths,
@@ -936,6 +937,18 @@ app.get("/api/models/neural-network", requireAuth, (req, res) => {
     console.error("Error loading Neural Network model data:", error);
     res.status(500).json({
       error: "Unable to load Neural Network model data",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/models/svm", requireAuth, (req, res) => {
+  try {
+    res.json(buildSvmModelData());
+  } catch (error) {
+    console.error("Error loading SVM model data:", error);
+    res.status(500).json({
+      error: "Unable to load SVM model data",
       details: error.message,
     });
   }

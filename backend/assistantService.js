@@ -5,6 +5,7 @@ const {
   buildLogisticRegressionData,
   buildModelComparisonMetrics,
   buildPredictionLabContext,
+  buildSvmModelData,
 } = require("./dataService");
 
 function getAssistantConfiguration() {
@@ -35,7 +36,7 @@ function buildPageDescriptor(route) {
         pageKey: "dashboard",
         pageLabel: "Dashboard",
         description:
-          "Overview of dataset quality, risk distribution, and completed model metrics.",
+          "Overview of dataset quality, risk distribution, and completed model metrics for Decision Tree, Neural Network, and SVM.",
       };
     case "/app/dataset":
       return {
@@ -58,25 +59,26 @@ function buildPageDescriptor(route) {
         description:
           "Interactive learning games powered by dataset context and model comparison metrics.",
       };
-    case "/app/models/knn":
+    case "/app/models/decision-tree":
       return {
-        pageKey: "knn",
-        pageLabel: "KNN Model",
-        description: "KNN evaluation metrics, confusion matrix, and classifier report.",
-      };
-    case "/app/models/logistic-regression":
-      return {
-        pageKey: "logistic-regression",
-        pageLabel: "Logistic Regression Model",
+        pageKey: "decision-tree",
+        pageLabel: "Decision Tree Model",
         description:
-          "Logistic Regression metrics, feature list, and confusion matrix.",
+          "Decision Tree metrics, feature list, and confusion matrix.",
       };
     case "/app/models/neural-network":
       return {
         pageKey: "neural-network",
         pageLabel: "Neural Network Model",
         description:
-          "Placeholder page that is not yet wired to backend metrics.",
+          "Neural Network metrics, architecture summary, and confusion matrix.",
+      };
+    case "/app/models/svm":
+      return {
+        pageKey: "svm",
+        pageLabel: "SVM Model",
+        description:
+          "Support Vector Machine evaluation metrics, confusion matrix, and feature list.",
       };
     case "/app/risk-map":
       return {
@@ -108,11 +110,9 @@ function buildPageContext(route, predictionHistory = [], historySummary = null) 
         topPorts: dashboard.top_ports.slice(0, 5),
         topProducts: dashboard.top_products.slice(0, 5),
         completedModels: {
-          knnAccuracy:
-            dashboard.models?.knn_latest?.accuracy ??
-            dashboard.models?.knn_demo?.accuracy ??
-            null,
-          logisticAccuracy: dashboard.models?.logistic_regression?.accuracy ?? null,
+          decisionTreeAccuracy: dashboard.models?.decision_tree?.accuracy ?? null,
+          neuralNetworkAccuracy: dashboard.models?.neural_network?.accuracy ?? null,
+          svmAccuracy: dashboard.models?.svm?.accuracy ?? null,
         },
       };
     }
@@ -171,50 +171,33 @@ function buildPageContext(route, predictionHistory = [], historySummary = null) 
         topPorts: labContext.topPorts.slice(0, 5),
       };
     }
-    case "knn": {
-      const knn = buildKnnModelData();
-      const latest = knn.latest || knn.demo || null;
-      return {
-        page,
-        dataSource: "backend model metrics",
-        model: latest
-          ? {
-              model: latest.model || "KNN",
-              accuracy: latest.accuracy,
-              macroF1: latest.macro_f1,
-              weightedF1: latest.weighted_f1,
-              highRiskMetrics:
-                latest.classification_report?.["HIGH RISK"] ||
-                latest["HIGH RISK"] ||
-                null,
-            }
-          : null,
-      };
-    }
-    case "logistic-regression": {
-      const logistic = buildLogisticRegressionData();
-      return {
-        page,
-        dataSource: "backend model metrics",
-        model: logistic.metrics
-          ? {
-              accuracy: logistic.metrics.accuracy,
-              precision: logistic.metrics.precision,
-              recall: logistic.metrics.recall,
-              f1Score: logistic.metrics.f1_score,
-              baselineAccuracy: logistic.metrics.baseline_accuracy,
-              featuresUsed: logistic.features_used,
-            }
-          : null,
-      };
-    }
     case "neural-network":
       return {
         page,
-        dataSource: "page-only status",
+        dataSource: "backend model metrics",
         integrationStatus:
-          "This page is currently a placeholder and is not connected to backend metrics or a live neural-network route.",
+          "This page is connected to backend neural-network metrics and shows the saved evaluation results.",
       };
+    case "svm": {
+      const svm = buildSvmModelData();
+      return {
+        page,
+        dataSource: "backend model metrics",
+        model: svm.metrics
+          ? {
+              accuracy: svm.metrics.accuracy,
+              precision: svm.metrics.precision,
+              recall: svm.metrics.recall,
+              f1Score: svm.metrics.f1_score,
+              baselineAccuracy: svm.metrics.baseline_accuracy,
+              validationPrecision: svm.metrics.validation_precision,
+              validationRecall: svm.metrics.validation_recall,
+              validationF1: svm.metrics.validation_f1,
+              featuresUsed: svm.features_used,
+            }
+          : null,
+      };
+    }
     case "risk-map":
       return {
         page,
@@ -237,10 +220,11 @@ function buildPageContext(route, predictionHistory = [], historySummary = null) 
             "Dataset",
             "Prediction Lab",
             "Mini Testing Lab",
-            "KNN Model",
-            "Logistic Regression Model",
+            "Decision Tree Model",
+            "Neural Network Model",
+            "SVM Model",
           ],
-          staticPages: ["Risk Map", "Neural Network Model"],
+          staticPages: ["Risk Map"],
         },
       };
     }
@@ -268,9 +252,10 @@ function isProjectQuestion(question, pageContext) {
     "tax",
     "ratio",
     "fraud",
-    "knn",
-    "logistic",
+    "decision",
+    "tree",
     "neural",
+    "svm",
     "backend",
     "frontend",
     "algorithm",
@@ -308,7 +293,7 @@ function buildPresentationReply(pageContext) {
     case "dashboard":
       return formatSummaryLines([
         "You can present this as the high-level control room of the Import Risk Analysis System.",
-        `It summarizes ${pageContext.overview.total_records.toLocaleString()} cleaned shipment records, shows the risk split, and compares the completed KNN and Logistic Regression models.`,
+        `It summarizes ${pageContext.overview.total_records.toLocaleString()} cleaned shipment records, shows the risk split, and compares the completed Decision Tree, Neural Network, and SVM models.`,
         "The main message is that the dashboard combines data quality, shipment patterns, and model performance in one place.",
       ]);
     case "dataset":
@@ -320,7 +305,7 @@ function buildPresentationReply(pageContext) {
     case "prediction":
       return formatSummaryLines([
         "You can present this page as the live decision screen of the project.",
-        `It uses the active ${pageContext.model?.name || "KNN"} model, compares user input against dataset benchmarks, and shows recent prediction behavior.`,
+        `It uses the active ${pageContext.model?.name || "SVM"} model, compares user input against dataset benchmarks, and shows recent prediction behavior.`,
         "The message is that users can test shipment cases and immediately see how the project interprets customs risk.",
       ]);
     case "testing-lab":
@@ -347,7 +332,7 @@ function buildPageAnswer(pageContext) {
     case "dashboard":
       return formatSummaryLines([
         `This page is the project dashboard. It summarizes ${pageContext.overview.total_records.toLocaleString()} shipment records and shows a high-risk share of ${pageContext.overview.high_risk_share}%.`,
-        `The strongest completed models shown here are KNN at ${formatAccuracy(pageContext.completedModels.knnAccuracy)} and Logistic Regression at ${formatAccuracy(pageContext.completedModels.logisticAccuracy)}.`,
+        `The strongest completed models shown here are Decision Tree at ${formatAccuracy(pageContext.completedModels.decisionTreeAccuracy)}, Neural Network at ${formatAccuracy(pageContext.completedModels.neuralNetworkAccuracy)}, and SVM at ${formatAccuracy(pageContext.completedModels.svmAccuracy)}.`,
         pageContext.topPorts[0]
           ? `${pageContext.topPorts[0].port} is currently the top destination port in the visible summary.`
           : "",
@@ -374,16 +359,13 @@ function buildPageAnswer(pageContext) {
         `It uses ${pageContext.sampleCounts.labSamples} lab samples, ${pageContext.sampleCounts.featuredSamples} featured examples, and model comparison metrics from the backend.`,
         `The lab is centered on understanding how features like tax ratio influence the project's risk logic.`
       ]);
-    case "knn":
+    case "decision-tree":
       return pageContext.model
-        ? `This page explains the KNN model. The current summary shows accuracy of ${formatAccuracy(pageContext.model.accuracy)} and macro F1 of ${formatAccuracy(pageContext.model.macroF1)}.`
-        : "This page is intended to show KNN metrics, but no KNN metrics are currently available.";
-    case "logistic-regression":
-      return pageContext.model
-        ? `This page explains the Logistic Regression model. The current summary shows accuracy of ${formatAccuracy(pageContext.model.accuracy)}, precision of ${formatAccuracy(pageContext.model.precision)}, recall of ${formatAccuracy(pageContext.model.recall)}, and F1 score of ${formatAccuracy(pageContext.model.f1Score)}.`
-        : "This page is intended to show Logistic Regression metrics, but no metrics are currently available.";
+        ? `This page explains the Decision Tree model. The current summary shows accuracy of ${formatAccuracy(pageContext.model.accuracy)}, F1 score of ${formatAccuracy(pageContext.model.f1Score)}, and the most important feature signals.`
+        : "This page is intended to show Decision Tree metrics, but no metrics are currently available.";
     case "risk-map":
     case "neural-network":
+    case "svm":
       return pageContext.integrationStatus;
     default:
       return `This assistant can answer questions about the Import Risk Analysis System project. Right now you are on the ${pageContext.page.pageLabel} page.`;
