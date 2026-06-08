@@ -108,6 +108,9 @@ FINAL_REQUIRED_COLUMNS = [
     "expected_tax",
     "tax_gap",
     "tax_paid_share",
+    "tax_per_kg",
+    "tax_per_m3",
+    "log_tax",
     "risk",
 ]
 
@@ -243,11 +246,17 @@ def add_expected_tax_features(df):
     df["expected_tax"] = df["price_usd"] * df["expected_tax_rate"]
     df["tax_gap"] = df["expected_tax"] - df["tax"]
     df["tax_paid_share"] = safe_divide(df["tax"], df["expected_tax"], default=0)
+    df["tax_per_kg"] = safe_divide(df["tax"], df["weight_kg"])
+    df["tax_per_m3"] = safe_divide(df["tax"], df["volume_m3"])
+    df["log_tax"] = np.log1p(df["tax"])
 
     df["expected_tax_rate"] = df["expected_tax_rate"].round(4)
     df["expected_tax"] = df["expected_tax"].round(2)
     df["tax_gap"] = df["tax_gap"].round(2)
     df["tax_paid_share"] = df["tax_paid_share"].round(4)
+    df["tax_per_kg"] = df["tax_per_kg"].round(4)
+    df["tax_per_m3"] = df["tax_per_m3"].round(4)
+    df["log_tax"] = df["log_tax"].round(4)
 
     return df
 
@@ -255,6 +264,8 @@ def add_expected_tax_features(df):
 def add_risk_column(df):
     df = df.copy()
 
+    # This target is still derived from tax_ratio, so tax-ratio leakage must be
+    # handled by downstream model feature selection until the label is redefined.
     low_risk_threshold = df["tax_ratio"].quantile(0.15)
 
     df["risk"] = df["tax_ratio"].apply(
@@ -344,6 +355,8 @@ def main():
                 "expected_tax",
                 "tax_gap",
                 "tax_paid_share",
+                "tax_per_kg",
+                "tax_per_m3",
                 "risk",
             ]
         ].head()
