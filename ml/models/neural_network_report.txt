@@ -1,18 +1,22 @@
 Neural Network Evaluation Report
 ==================================================
 
-Best architecture: baseline_64_32
-Features: price_usd, weight_kg, length_m, width_m, height_m, volume_m3, max_dimension_m, dimension_sum_m, density_kg_m3, value_per_kg, value_per_m3, tax, tax_ratio
-Accuracy: 0.9982
-F1 Score: 0.994
-Confusion Matrix: [[44835, 48], [46, 7836]]
+Best architecture: deeper_128_64_32
+Features: weight_kg, length_m, width_m, height_m, volume_m3, max_dimension_m, dimension_sum_m, density_kg_m3, expected_tax_rate, tax_gap, tax_per_kg, tax_per_m3, log_tax
+Evaluation split: held_out_test
+Accuracy: 0.9559
+F1 Score: 0.847
+Confusion Matrix: [[43989, 894], [1435, 6447]]
+
+Leakage Note:
+The current target is derived from tax_ratio, so the dataset itself still contains label leakage. The neural network feature set removes tax_ratio, raw tax, price_usd, value-per-price features, and tax_paid_share to avoid trivially reconstructing tax_ratio, but the target definition should be reworked for a fully leakage-free model.
 
 Classification Report:
               precision    recall  f1-score   support
 
-    LOW RISK       1.00      1.00      1.00     44883
-   HIGH RISK       0.99      0.99      0.99      7882
+    LOW RISK       0.97      0.98      0.97     44883
+   HIGH RISK       0.88      0.82      0.85      7882
 
-    accuracy                           1.00     52765
-   macro avg       1.00      1.00      1.00     52765
-weighted avg       1.00      1.00      1.00     52765
+    accuracy                           0.96     52765
+   macro avg       0.92      0.90      0.91     52765
+weighted avg       0.95      0.96      0.96     52765
