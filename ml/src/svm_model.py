@@ -46,6 +46,9 @@ MAX_ROWS_FOR_SVM = 80000
 FEATURE_COLUMNS = [
     "price_usd",
     "weight_kg",
+    "length_m",
+    "width_m",
+    "height_m",
     "volume_m3",
     "max_dimension_m",
     "dimension_sum_m",
@@ -53,6 +56,11 @@ FEATURE_COLUMNS = [
     "value_per_kg",
     "value_per_m3",
 ]
+
+MODEL_NOTE = (
+    "The final SVM is trained on pre-risk shipment features only. "
+    "Tax-derived shortcuts were removed to avoid label leakage."
+)
 
 TARGET_COLUMN = "risk"
 TARGET_MAPPING = {"LOW RISK": 0, "HIGH RISK": 1}
@@ -124,10 +132,10 @@ def build_svm_model():
             (
                 "classifier",
                 LinearSVC(
-                    C=1.0,
+                    C=0.1,
                     class_weight="balanced",
                     dual=False,
-                    max_iter=5000,
+                    max_iter=10000,
                     random_state=RANDOM_STATE,
                 ),
             ),
@@ -241,6 +249,8 @@ def save_outputs(model, metrics, report_text):
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, MODEL_PATH)
 
+    metrics["model_note"] = MODEL_NOTE
+
     with METRICS_PATH.open("w", encoding="utf-8") as metrics_file:
         json.dump(metrics, metrics_file, indent=2)
 
@@ -264,6 +274,7 @@ def save_outputs(model, metrics, report_text):
         report_file.write(f"Rows used: {metrics['rows_used']}\n")
         report_file.write(f"Test rows: {metrics['test_rows']}\n")
         report_file.write(f"Best params: {metrics.get('best_params', {})}\n")
+        report_file.write(f"Note: {metrics['model_note']}\n")
 
 
 def main():

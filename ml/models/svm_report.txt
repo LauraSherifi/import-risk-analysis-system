@@ -3,25 +3,26 @@ SVM MODEL EVALUATION REPORT
 
               precision    recall  f1-score   support
 
-    LOW RISK       0.81      0.00      0.00     13610
-   HIGH RISK       0.15      1.00      0.26      2390
+    LOW RISK       0.90      0.92      0.91     13600
+   HIGH RISK       0.49      0.43      0.46      2400
 
-    accuracy                           0.15     16000
-   macro avg       0.48      0.50      0.13     16000
-weighted avg       0.71      0.15      0.04     16000
+    accuracy                           0.85     16000
+   macro avg       0.69      0.68      0.68     16000
+weighted avg       0.84      0.85      0.84     16000
 
 
-Accuracy: 0.1504
-Baseline Accuracy: 0.8506
-Decision Threshold: -0.187699
-Precision: 0.1493
-Recall: 0.9979
-F1 Score: 0.2597
-Validation Precision: 0.1495
-Validation Recall: 1.0
-Validation F1: 0.2601
-CV F1 Mean: 0.2076
-CV F1 Std: 0.0201
+Accuracy: 0.8467
+Baseline Accuracy: 0.85
+Decision Threshold: 0.057253
+Precision: 0.4875
+Recall: 0.4313
+F1 Score: 0.4577
+Validation Precision: 0.4903
+Validation Recall: 0.4521
+Validation F1: 0.4704
+CV F1 Mean: 0.4239
+CV F1 Std: 0.0113
 Rows used: 80000
 Test rows: 16000
-Best params: {'classifier__C': 0.1, 'classifier__class_weight': 'balanced'}
+Best params: {'classifier__C': 0.01, 'classifier__class_weight': 'balanced'}
+Note: The final SVM is trained on pre-risk shipment features only. Tax-derived shortcuts were removed to avoid label leakage.

@@ -3,6 +3,9 @@
   "features_used": [
     "price_usd",
     "weight_kg",
+    "length_m",
+    "width_m",
+    "height_m",
     "volume_m3",
     "max_dimension_m",
     "dimension_sum_m",
@@ -12,10 +15,10 @@
   ],
   "rows_used": 80000,
   "test_rows": 16000,
-  "accuracy": 0.1504,
-  "precision": 0.1493,
-  "recall": 0.9979,
-  "f1_score": 0.2597,
+  "accuracy": 0.8467,
+  "precision": 0.4875,
+  "recall": 0.4313,
+  "f1_score": 0.4577,
   "confusion_matrix": {
     "labels": [
       "LOW RISK",
@@ -23,51 +26,52 @@
     ],
     "matrix": [
       [
-        21,
-        13589
+        12512,
+        1088
       ],
       [
-        5,
-        2385
+        1365,
+        1035
       ]
     ]
   },
   "classification_report": {
     "LOW RISK": {
-      "precision": 0.8076923076923077,
-      "recall": 0.0015429831006612785,
-      "f1-score": 0.003080082135523614,
-      "support": 13610.0
+      "precision": 0.9016358002450098,
+      "recall": 0.92,
+      "f1-score": 0.9107253339156385,
+      "support": 13600.0
     },
     "HIGH RISK": {
-      "precision": 0.14930512082133468,
-      "recall": 0.997907949790795,
-      "f1-score": 0.2597473317360052,
-      "support": 2390.0
+      "precision": 0.4875176636834668,
+      "recall": 0.43125,
+      "f1-score": 0.4576608445721866,
+      "support": 2400.0
     },
-    "accuracy": 0.150375,
+    "accuracy": 0.8466875,
     "macro avg": {
-      "precision": 0.4784987142568212,
-      "recall": 0.49972546644572813,
-      "f1-score": 0.13141370693576443,
+      "precision": 0.6945767319642383,
+      "recall": 0.675625,
+      "f1-score": 0.6841930892439125,
       "support": 16000.0
     },
     "weighted avg": {
-      "precision": 0.7093457216534562,
-      "recall": 0.150375,
-      "f1-score": 0.04141975254459555,
+      "precision": 0.8395180797607783,
+      "recall": 0.8466875,
+      "f1-score": 0.8427656605141208,
       "support": 16000.0
     }
   },
-  "baseline_accuracy": 0.8506,
-  "cv_f1_mean": 0.2076,
-  "cv_f1_std": 0.0201,
-  "decision_threshold": -0.187699,
-  "validation_precision": 0.1495,
-  "validation_recall": 1.0,
-  "validation_f1": 0.2601,
+  "baseline_accuracy": 0.85,
+  "cv_f1_mean": 0.4239,
+  "cv_f1_std": 0.0113,
+  "decision_threshold": 0.057253,
+  "validation_precision": 0.4903,
+  "validation_recall": 0.4521,
+  "validation_f1": 0.4704,
   "best_params": {
-    "classifier__C": 0.1,
+    "classifier__C": 0.01,
     "classifier__class_weight": "balanced"
-  }
+  },
+  "model_note": "The final SVM is trained on pre-risk shipment features only. Tax-derived shortcuts were removed to avoid label leakage."
 }
