@@ -150,7 +150,7 @@ const buildDatasetAssessment = (sample, predictionLabDataset) => {
         26 + Math.round(((high - ratio) / (high - median || 1)) * 14);
     } else {
       fraudProbability = Math.max(
-        8,
+        8, 
         22 - Math.round(((ratio - high) / high) * 12)
       );
     }
