@@ -5395,3 +5395,194 @@ td {
     max-height: 260px;
   }
 }
+/* MOBILE RESPONSIVE FIX */
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+img,
+svg,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.app-shell,
+.main,
+.dashboard-page,
+.dataset-page,
+.panel,
+.card {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    width: 100%;
+    height: auto !important;
+    min-height: 100dvh;
+    flex-direction: column;
+    overflow: visible !important;
+  }
+
+  .sidebar {
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    position: relative !important;
+    top: auto !important;
+    padding: 18px;
+    overflow: visible !important;
+    border-radius: 0 0 22px 22px;
+  }
+
+  .sidebar-brand {
+    gap: 10px;
+  }
+
+  .logo {
+    width: 54px;
+    height: 54px;
+    flex: 0 0 54px;
+  }
+
+  .sidebar h2 {
+    font-size: 18px;
+  }
+
+  .sidebar p {
+    font-size: 12px;
+  }
+
+  .sidebar-summary {
+    margin-top: 14px;
+    padding: 12px;
+  }
+
+  nav {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  nav a {
+    text-align: center;
+    padding: 11px 10px;
+    font-size: 14px;
+  }
+
+  .nav-section-title {
+    grid-column: 1 / -1;
+    margin-top: 10px;
+  }
+
+  .main {
+    width: 100%;
+    height: auto !important;
+    min-height: auto;
+    overflow: visible !important;
+    padding: 18px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .page-header h1 {
+    font-size: 26px;
+  }
+
+  .page-header p {
+    font-size: 14px;
+  }
+
+  .cards,
+  .dashboard-grid,
+  .prediction-grid,
+  .model-comparison-grid,
+  .quality-dashboard-grid,
+  .lab-grid,
+  .roadmap-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .panel,
+  .card {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .status-pill {
+    align-self: flex-start;
+    white-space: normal;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  table {
+    min-width: 640px;
+  }
+
+  .ai-assistant-fab {
+    width: 70px;
+    height: 70px;
+    right: 14px;
+    bottom: 14px;
+  }
+
+  .ai-assistant-panel {
+    left: 12px;
+    right: 12px;
+    bottom: 90px;
+    width: auto;
+    max-height: calc(100dvh - 110px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    padding: 16px;
+  }
+
+  .sidebar-summary {
+    display: none;
+  }
+
+  nav {
+    grid-template-columns: 1fr;
+  }
+
+  .main {
+    padding: 14px;
+  }
+
+  .page-header h1 {
+    font-size: 24px;
+  }
+
+  .card strong,
+  .prediction-result strong {
+    font-size: 24px;
+  }
+
+  th,
+  td {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+}
