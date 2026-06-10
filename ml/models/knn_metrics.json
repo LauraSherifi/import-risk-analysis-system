@@ -3,47 +3,45 @@
     "features_used": [
         "price_usd",
         "weight_kg",
-        "length_m",
-        "width_m",
-        "height_m",
         "volume_m3",
         "max_dimension_m",
         "dimension_sum_m",
         "density_kg_m3",
         "value_per_kg",
         "value_per_m3",
-        "tax",
-        "tax_ratio"
+        "length_m",
+        "width_m",
+        "height_m"
     ],
     "rows_used": 60000,
     "test_rows": 12000,
-    "accuracy": 0.9326,
-    "macro_f1": 0.8578,
-    "weighted_f1": 0.93,
+    "accuracy": 0.859,
+    "macro_f1": 0.681,
+    "weighted_f1": 0.8478,
     "classification_report": {
         "LOW RISK": {
-            "precision": 0.9470627439779111,
-            "recall": 0.9751960784313726,
-            "f1-score": 0.960923537651548,
+            "precision": 0.89520624303233,
+            "recall": 0.9447058823529412,
+            "f1-score": 0.9192902117916428,
             "support": 10200.0
         },
         "HIGH RISK": {
-            "precision": 0.8309953239812959,
-            "recall": 0.6911111111111111,
-            "f1-score": 0.7546254170457992,
+            "precision": 0.5436893203883495,
+            "recall": 0.37333333333333335,
+            "f1-score": 0.4426877470355731,
             "support": 1800.0
         },
-        "accuracy": 0.9325833333333333,
+        "accuracy": 0.859,
         "macro avg": {
-            "precision": 0.8890290339796035,
-            "recall": 0.8331535947712418,
-            "f1-score": 0.8577744773486736,
+            "precision": 0.7194477817103397,
+            "recall": 0.6590196078431373,
+            "f1-score": 0.6809889794136079,
             "support": 12000.0
         },
         "weighted avg": {
-            "precision": 0.9296526309784189,
-            "recall": 0.9325833333333333,
-            "f1-score": 0.9299788195606858,
+            "precision": 0.8424787046357328,
+            "recall": 0.859,
+            "f1-score": 0.8477998420782323,
             "support": 12000.0
         }
     },
@@ -54,12 +52,12 @@
         ],
         "matrix": [
             [
-                9947,
-                253
+                9636,
+                564
             ],
             [
-                556,
-                1244
+                1128,
+                672
             ]
         ]
     }

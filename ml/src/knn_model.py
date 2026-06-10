@@ -25,17 +25,15 @@ MAX_ROWS_FOR_KNN = 60000
 FEATURE_COLUMNS = [
     "price_usd",
     "weight_kg",
-    "length_m",
-    "width_m",
-    "height_m",
     "volume_m3",
     "max_dimension_m",
     "dimension_sum_m",
     "density_kg_m3",
     "value_per_kg",
     "value_per_m3",
-    "tax",
-    "tax_ratio",
+    "length_m",
+    "width_m",
+    "height_m",
 ]
 
 TARGET_COLUMN = "risk"

@@ -3,16 +3,16 @@ KNN MODEL EVALUATION REPORT
 
               precision    recall  f1-score   support
 
-    LOW RISK       0.95      0.98      0.96     10200
-   HIGH RISK       0.83      0.69      0.75      1800
+    LOW RISK       0.90      0.94      0.92     10200
+   HIGH RISK       0.54      0.37      0.44      1800
 
-    accuracy                           0.93     12000
-   macro avg       0.89      0.83      0.86     12000
-weighted avg       0.93      0.93      0.93     12000
+    accuracy                           0.86     12000
+   macro avg       0.72      0.66      0.68     12000
+weighted avg       0.84      0.86      0.85     12000
 
 
-Accuracy: 0.9326
-Macro F1: 0.8578
-Weighted F1: 0.93
+Accuracy: 0.859
+Macro F1: 0.681
+Weighted F1: 0.8478
 Rows used: 60000
 Test rows: 12000

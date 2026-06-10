@@ -1,22 +1,22 @@
 {
-  "accuracy": 0.8329,
-  "precision": 0.4492,
-  "recall": 0.503,
-  "f1_score": 0.4746,
+  "accuracy": 0.8211,
+  "precision": 0.4212,
+  "recall": 0.5155,
+  "f1_score": 0.4636,
   "confusion_matrix": [
     [
-      39968,
-      4882
+      39243,
+      5607
     ],
     [
-      3934,
-      3981
+      3835,
+      4080
     ]
   ],
-  "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.91      0.89      0.90     44850\n   HIGH RISK       0.45      0.50      0.47      7915\n\n    accuracy                           0.83     52765\n   macro avg       0.68      0.70      0.69     52765\nweighted avg       0.84      0.83      0.84     52765\n",
+  "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.91      0.87      0.89     44850\n   HIGH RISK       0.42      0.52      0.46      7915\n\n    accuracy                           0.82     52765\n   macro avg       0.67      0.70      0.68     52765\nweighted avg       0.84      0.82      0.83     52765\n",
   "baseline_accuracy": 0.85,
-  "cv_f1_mean": 0.4715,
-  "cv_f1_std": 0.0034,
+  "cv_f1_mean": 0.4658,
+  "cv_f1_std": 0.0017,
   "best_params": {
     "classifier__C": 0.01,
     "classifier__class_weight": "balanced",
