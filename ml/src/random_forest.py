@@ -89,7 +89,7 @@ def build_random_forest_model():
         min_samples_leaf=2,
         class_weight="balanced_subsample",
         random_state=RANDOM_STATE,
-        n_jobs=-1,
+        n_jobs=1,
     )
 
 

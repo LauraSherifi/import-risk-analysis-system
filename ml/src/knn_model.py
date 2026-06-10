@@ -107,7 +107,7 @@ def build_knn_model():
                     n_neighbors=5,
                     weights="distance",
                     metric="minkowski",
-                    n_jobs=-1,
+                    n_jobs=1,
                 ),
             ),
         ]
@@ -157,7 +157,8 @@ def evaluate_model(model, X_test, y_test):
 def save_outputs(model, metrics, report_text):
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
-    joblib.dump(model, MODEL_PATH)
+    with open(MODEL_PATH, "wb") as model_file:
+        joblib.dump(model, model_file)
 
     with open(METRICS_PATH, "w", encoding="utf-8") as file:
         json.dump(metrics, file, indent=4)

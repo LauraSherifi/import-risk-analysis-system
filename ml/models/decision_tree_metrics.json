@@ -1,51 +1,41 @@
 {
-  "accuracy": 0.8587,
-  "precision": 0.5349,
-  "recall": 0.4107,
-  "f1_score": 0.4646,
+  "accuracy": 0.9242,
+  "precision": 0.7643,
+  "recall": 0.715,
+  "f1_score": 0.7388,
   "confusion_matrix": [
     [
-      9568,
-      640
+      9803,
+      397
     ],
     [
-      1056,
-      736
+      513,
+      1287
     ]
   ],
-  "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.90      0.94      0.92     10208\n   HIGH RISK       0.53      0.41      0.46      1792\n\n    accuracy                           0.86     12000\n   macro avg       0.72      0.67      0.69     12000\nweighted avg       0.85      0.86      0.85     12000\n",
+  "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.95      0.96      0.96     10200\n   HIGH RISK       0.76      0.71      0.74      1800\n\n    accuracy                           0.92     12000\n   macro avg       0.86      0.84      0.85     12000\nweighted avg       0.92      0.92      0.92     12000\n",
   "criterion": "gini",
-  "baseline_accuracy": 0.8507,
-  "features_used": [
-    "price_usd",
-    "weight_kg",
-    "length_m",
-    "width_m",
-    "height_m",
-    "volume_m3",
-    "max_dimension_m",
-    "dimension_sum_m",
-    "density_kg_m3",
-    "value_per_kg",
-    "value_per_m3",
-    "tax_band",
-    "tax_ratio_band"
-  ],
-  "rows_used": 60000,
-  "test_rows": 12000,
-  "model": "Decision Tree",
+  "baseline_accuracy": 0.85,
   "feature_importance": [
     {
+      "feature": "value_per_m3",
+      "importance": 0.44232
+    },
+    {
       "feature": "tax_ratio_band",
-      "importance": 0.907283
+      "importance": 0.325007
     },
     {
       "feature": "price_usd",
-      "importance": 0.077295
+      "importance": 0.228691
     },
     {
-      "feature": "tax_band",
-      "importance": 0.015422
+      "feature": "value_per_kg",
+      "importance": 0.003873
+    },
+    {
+      "feature": "volume_m3",
+      "importance": 0.00011
     },
     {
       "feature": "weight_kg",
@@ -64,10 +54,6 @@
       "importance": 0.0
     },
     {
-      "feature": "volume_m3",
-      "importance": 0.0
-    },
-    {
       "feature": "max_dimension_m",
       "importance": 0.0
     },
@@ -80,35 +66,49 @@
       "importance": 0.0
     },
     {
-      "feature": "value_per_kg",
-      "importance": 0.0
-    },
-    {
-      "feature": "value_per_m3",
+      "feature": "tax_band",
       "importance": 0.0
     }
   ],
+  "features_used": [
+    "price_usd",
+    "weight_kg",
+    "length_m",
+    "width_m",
+    "height_m",
+    "volume_m3",
+    "max_dimension_m",
+    "dimension_sum_m",
+    "density_kg_m3",
+    "value_per_kg",
+    "value_per_m3",
+    "tax_band",
+    "tax_ratio_band"
+  ],
+  "rows_used": 60000,
+  "test_rows": 12000,
+  "model": "Decision Tree",
   "criterion_results": [
     {
       "criterion": "gini",
-      "accuracy": 0.8587,
-      "precision": 0.5349,
-      "recall": 0.4107,
-      "f1_score": 0.4646
+      "accuracy": 0.9242,
+      "precision": 0.7643,
+      "recall": 0.715,
+      "f1_score": 0.7388
     },
     {
       "criterion": "entropy",
-      "accuracy": 0.8572,
-      "precision": 0.5291,
-      "recall": 0.3956,
-      "f1_score": 0.4527
+      "accuracy": 0.9089,
+      "precision": 0.6543,
+      "recall": 0.8328,
+      "f1_score": 0.7328
     },
     {
       "criterion": "log_loss",
-      "accuracy": 0.8572,
-      "precision": 0.5291,
-      "recall": 0.3956,
-      "f1_score": 0.4527
+      "accuracy": 0.9089,
+      "precision": 0.6543,
+      "recall": 0.8328,
+      "f1_score": 0.7328
     }
   ],
   "model_note": "Decision Tree was trained without PCA for the final model. Tax and tax_ratio were retained, but transformed into tax_band and tax_ratio_band. Gini, Entropy, and Log Loss criteria were compared, and the final saved model is the best-performing criterion based on F1 Score and Accuracy."

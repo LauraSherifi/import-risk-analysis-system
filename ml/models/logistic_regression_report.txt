@@ -1,22 +1,22 @@
 Logistic Regression Evaluation
 Features: price_usd, weight_kg, volume_m3, max_dimension_m, dimension_sum_m, density_kg_m3, value_per_kg, value_per_m3
 
-Accuracy: 0.4992
-Baseline Accuracy: 0.8506
-Precision: 0.1486
-Recall: 0.4975
-F1 Score: 0.2288
-CV F1 Mean: 0.2196
-CV F1 Std: 0.0111
-Best Params: {'classifier__C': 0.01, 'classifier__class_weight': 'balanced', 'classifier__solver': 'lbfgs'}
-Confusion Matrix: [[22419, 22464], [3961, 3921]]
+Accuracy: 0.8329
+Baseline Accuracy: 0.85
+Precision: 0.4492
+Recall: 0.503
+F1 Score: 0.4746
+CV F1 Mean: 0.4715
+CV F1 Std: 0.0034
+Best Params: {'classifier__C': 0.01, 'classifier__class_weight': 'balanced', 'classifier__solver': 'liblinear'}
+Confusion Matrix: [[39968, 4882], [3934, 3981]]
 
 Classification Report:
               precision    recall  f1-score   support
 
-    LOW RISK       0.85      0.50      0.63     44883
-   HIGH RISK       0.15      0.50      0.23      7882
+    LOW RISK       0.91      0.89      0.90     44850
+   HIGH RISK       0.45      0.50      0.47      7915
 
-    accuracy                           0.50     52765
-   macro avg       0.50      0.50      0.43     52765
-weighted avg       0.75      0.50      0.57     52765
+    accuracy                           0.83     52765
+   macro avg       0.68      0.70      0.69     52765
+weighted avg       0.84      0.83      0.84     52765

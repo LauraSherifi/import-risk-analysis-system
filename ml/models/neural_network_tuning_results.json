@@ -10,21 +10,21 @@
     "learning_rate": 0.001,
     "batch_size": 64,
     "epochs_requested": 25,
-    "epochs_ran": 24,
-    "validation_loss": 0.1073,
-    "validation_accuracy": 0.9553,
-    "validation_f1_score": 0.8439,
+    "epochs_ran": 15,
+    "validation_loss": 0.0631,
+    "validation_accuracy": 0.9762,
+    "validation_f1_score": 0.9184,
     "validation_confusion_matrix": [
       [
-        44023,
-        860
+        44429,
+        420
       ],
       [
-        1501,
-        6380
+        838,
+        7077
       ]
     ],
-    "validation_classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.97      0.98      0.97     44883\n   HIGH RISK       0.88      0.81      0.84      7881\n\n    accuracy                           0.96     52764\n   macro avg       0.92      0.90      0.91     52764\nweighted avg       0.95      0.96      0.95     52764\n"
+    "validation_classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.98      0.99      0.99     44849\n   HIGH RISK       0.94      0.89      0.92      7915\n\n    accuracy                           0.98     52764\n   macro avg       0.96      0.94      0.95     52764\nweighted avg       0.98      0.98      0.98     52764\n"
   },
   {
     "name": "deeper_128_64_32",
@@ -38,20 +38,20 @@
     "learning_rate": 0.0005,
     "batch_size": 128,
     "epochs_requested": 30,
-    "epochs_ran": 29,
-    "validation_loss": 0.1088,
-    "validation_accuracy": 0.9558,
-    "validation_f1_score": 0.8467,
+    "epochs_ran": 15,
+    "validation_loss": 0.0692,
+    "validation_accuracy": 0.9729,
+    "validation_f1_score": 0.903,
     "validation_confusion_matrix": [
       [
-        43998,
-        885
+        44682,
+        167
       ],
       [
-        1445,
-        6436
+        1262,
+        6653
       ]
     ],
-    "validation_classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.97      0.98      0.97     44883\n   HIGH RISK       0.88      0.82      0.85      7881\n\n    accuracy                           0.96     52764\n   macro avg       0.92      0.90      0.91     52764\nweighted avg       0.95      0.96      0.96     52764\n"
+    "validation_classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.97      1.00      0.98     44849\n   HIGH RISK       0.98      0.84      0.90      7915\n\n    accuracy                           0.97     52764\n   macro avg       0.97      0.92      0.94     52764\nweighted avg       0.97      0.97      0.97     52764\n"
   }
 ]

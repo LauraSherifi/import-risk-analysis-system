@@ -3,41 +3,41 @@ PCA was tested but not selected for the final model.
 Features: price_usd, weight_kg, length_m, width_m, height_m, volume_m3, max_dimension_m, dimension_sum_m, density_kg_m3, value_per_kg, value_per_m3, tax_band, tax_ratio_band
 
 Best Criterion: gini
-Accuracy: 0.8587
-Baseline Accuracy: 0.8507
-Precision: 0.5349
-Recall: 0.4107
-F1 Score: 0.4646
+Accuracy: 0.9242
+Baseline Accuracy: 0.85
+Precision: 0.7643
+Recall: 0.715
+F1 Score: 0.7388
 Rows Used: 60000
 Test Rows: 12000
-Confusion Matrix: [[9568, 640], [1056, 736]]
+Confusion Matrix: [[9803, 397], [513, 1287]]
 
 Criterion Comparison:
-- gini: accuracy=0.8587, precision=0.5349, recall=0.4107, f1=0.4646
-- entropy: accuracy=0.8572, precision=0.5291, recall=0.3956, f1=0.4527
-- log_loss: accuracy=0.8572, precision=0.5291, recall=0.3956, f1=0.4527
+- gini: accuracy=0.9242, precision=0.7643, recall=0.715, f1=0.7388
+- entropy: accuracy=0.9089, precision=0.6543, recall=0.8328, f1=0.7328
+- log_loss: accuracy=0.9089, precision=0.6543, recall=0.8328, f1=0.7328
 
 Feature Importance:
-- tax_ratio_band: 0.907283
-- price_usd: 0.077295
-- tax_band: 0.015422
+- value_per_m3: 0.44232
+- tax_ratio_band: 0.325007
+- price_usd: 0.228691
+- value_per_kg: 0.003873
+- volume_m3: 0.00011
 - weight_kg: 0.0
 - length_m: 0.0
 - width_m: 0.0
 - height_m: 0.0
-- volume_m3: 0.0
 - max_dimension_m: 0.0
 - dimension_sum_m: 0.0
 - density_kg_m3: 0.0
-- value_per_kg: 0.0
-- value_per_m3: 0.0
+- tax_band: 0.0
 
 Classification Report:
               precision    recall  f1-score   support
 
-    LOW RISK       0.90      0.94      0.92     10208
-   HIGH RISK       0.53      0.41      0.46      1792
+    LOW RISK       0.95      0.96      0.96     10200
+   HIGH RISK       0.76      0.71      0.74      1800
 
-    accuracy                           0.86     12000
-   macro avg       0.72      0.67      0.69     12000
-weighted avg       0.85      0.86      0.85     12000
+    accuracy                           0.92     12000
+   macro avg       0.86      0.84      0.85     12000
+weighted avg       0.92      0.92      0.92     12000

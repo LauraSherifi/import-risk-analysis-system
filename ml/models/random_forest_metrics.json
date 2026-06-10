@@ -1,64 +1,64 @@
 {
-  "accuracy": 0.7956,
-  "precision": 0.1539,
-  "recall": 0.082,
-  "f1_score": 0.107,
+  "accuracy": 0.8408,
+  "precision": 0.4805,
+  "recall": 0.7533,
+  "f1_score": 0.5868,
   "confusion_matrix": [
     [
-      9400,
-      808
+      8734,
+      1466
     ],
     [
-      1645,
-      147
+      444,
+      1356
     ]
   ],
-  "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.85      0.92      0.88     10208\n   HIGH RISK       0.15      0.08      0.11      1792\n\n    accuracy                           0.80     12000\n   macro avg       0.50      0.50      0.50     12000\nweighted avg       0.75      0.80      0.77     12000\n",
-  "baseline_accuracy": 0.8507,
+  "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.95      0.86      0.90     10200\n   HIGH RISK       0.48      0.75      0.59      1800\n\n    accuracy                           0.84     12000\n   macro avg       0.72      0.80      0.74     12000\nweighted avg       0.88      0.84      0.85     12000\n",
+  "baseline_accuracy": 0.85,
   "feature_importance": [
     {
-      "feature": "value_per_kg",
-      "importance": 0.113592
-    },
-    {
       "feature": "value_per_m3",
-      "importance": 0.109919
+      "importance": 0.308251
     },
     {
       "feature": "price_usd",
-      "importance": 0.106887
+      "importance": 0.169778
     },
     {
-      "feature": "density_kg_m3",
-      "importance": 0.105807
-    },
-    {
-      "feature": "weight_kg",
-      "importance": 0.09811
-    },
-    {
-      "feature": "volume_m3",
-      "importance": 0.091494
+      "feature": "value_per_kg",
+      "importance": 0.155575
     },
     {
       "feature": "dimension_sum_m",
-      "importance": 0.07808
+      "importance": 0.059203
     },
     {
-      "feature": "width_m",
-      "importance": 0.077101
+      "feature": "density_kg_m3",
+      "importance": 0.055563
     },
     {
-      "feature": "length_m",
-      "importance": 0.075199
+      "feature": "volume_m3",
+      "importance": 0.055389
     },
     {
-      "feature": "height_m",
-      "importance": 0.072098
+      "feature": "weight_kg",
+      "importance": 0.055145
     },
     {
       "feature": "max_dimension_m",
-      "importance": 0.071713
+      "importance": 0.038335
+    },
+    {
+      "feature": "length_m",
+      "importance": 0.035438
+    },
+    {
+      "feature": "width_m",
+      "importance": 0.03386
+    },
+    {
+      "feature": "height_m",
+      "importance": 0.033465
     }
   ],
   "features_used": [

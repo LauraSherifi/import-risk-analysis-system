@@ -1,5 +1,5 @@
 {
-  "name": "deeper_128_64_32",
+  "name": "baseline_64_32",
   "evaluation_split": "held_out_test",
   "label_leakage_note": "The current target is derived from tax_ratio, so the dataset itself still contains label leakage. The neural network feature set removes tax_ratio, raw tax, price_usd, value-per-price features, and tax_paid_share to avoid trivially reconstructing tax_ratio, but the target definition should be reworked for a fully leakage-free model.",
   "features_used": [
@@ -18,28 +18,27 @@
     "log_tax"
   ],
   "layers": [
-    128,
     64,
     32
   ],
-  "dropout": 0.3,
-  "learning_rate": 0.0005,
-  "batch_size": 128,
-  "epochs_requested": 30,
-  "epochs_ran": 29,
-  "validation_f1_score_used_for_selection": 0.8467,
-  "validation_accuracy_used_for_selection": 0.9558,
-  "accuracy": 0.9559,
-  "f1_score": 0.847,
+  "dropout": 0.2,
+  "learning_rate": 0.001,
+  "batch_size": 64,
+  "epochs_requested": 25,
+  "epochs_ran": 15,
+  "validation_f1_score_used_for_selection": 0.9184,
+  "validation_accuracy_used_for_selection": 0.9762,
+  "accuracy": 0.9759,
+  "f1_score": 0.9175,
   "confusion_matrix": [
     [
-      43989,
-      894
+      44422,
+      428
     ],
     [
-      1435,
-      6447
+      843,
+      7072
     ]
   ],
-  "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.97      0.98      0.97     44883\n   HIGH RISK       0.88      0.82      0.85      7882\n\n    accuracy                           0.96     52765\n   macro avg       0.92      0.90      0.91     52765\nweighted avg       0.95      0.96      0.96     52765\n"
+  "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.98      0.99      0.99     44850\n   HIGH RISK       0.94      0.89      0.92      7915\n\n    accuracy                           0.98     52765\n   macro avg       0.96      0.94      0.95     52765\nweighted avg       0.98      0.98      0.98     52765\n"
 }
