@@ -599,8 +599,6 @@ function buildDecisionTreeData() {
       "density_kg_m3",
       "value_per_kg",
       "value_per_m3",
-      "tax",
-      "tax_ratio",
     ],
   };
 }

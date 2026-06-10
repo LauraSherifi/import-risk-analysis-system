@@ -174,20 +174,14 @@ function DecisionTreeModelPage() {
     },
   ];
 
-  const taxFeatureDominates =
-    topFeature === "tax_ratio_band" ||
-    topFeature === "tax_band" ||
-    topFeature === "tax_ratio" ||
-    topFeature === "tax";
-
   return (
     <div className="dashboard-page">
       <header className="page-header">
         <div>
           <h1>Decision Tree Dashboard</h1>
           <p>
-            Performance summary for the final Decision Tree classifier trained
-            without PCA, using transformed tax-related variables.
+           Performance summary for the final Decision Tree classifier trained
+           without PCA, using realistic pre-risk shipment features.
           </p>
         </div>
 
@@ -241,8 +235,9 @@ function DecisionTreeModelPage() {
             <strong>Without PCA</strong>
             <p>
               PCA was tested, but it was not selected for the final Decision
-              Tree model because it produced unstable results. The final model
-              uses tax_band and tax_ratio_band instead of raw tax and tax_ratio.
+              Tree model because it produced unstable results. Tax-derived band
+              features were removed to avoid label leakage, and the final model
+              uses only pre-risk shipment features.
             </p>
           </div>
         </div>
@@ -319,8 +314,8 @@ function DecisionTreeModelPage() {
             <strong>{topFeatureImportance.toFixed(2)}%</strong>
             <p>
               The most influential feature is {normalizeFeatureName(topFeature)}.
-              This shows that the Decision Tree relies strongly on transformed
-              tax-related patterns.
+              This shows that the Decision Tree relies mainly on shipment value
+and density-related patterns.
             </p>
           </div>
         </div>
@@ -402,7 +397,7 @@ function DecisionTreeModelPage() {
           <div className="mini-pipeline">
             <span>Clean Data</span>
             <i />
-            <span>Tax Bands</span>
+            <span>Safe Features</span>
             <i />
             <span>Decision Tree</span>
             <i />
@@ -423,24 +418,24 @@ function DecisionTreeModelPage() {
           </div>
         </div>
 
-        <div className="panel insight-panel">
-          <div className="panel-header">
-            <div>
-              <h3>Tax Signal Reading</h3>
-              <p>How tax-related variables affect interpretation.</p>
-            </div>
-          </div>
+<div className="panel insight-panel">
+  <div className="panel-header">
+    <div>
+      <h3>Feature Signal Reading</h3>
+      <p>How shipment-based variables affect interpretation.</p>
+    </div>
+  </div>
 
-          <div className="highlight-insight">
-            <span>{taxFeatureDominates ? "Tax-band driven" : "Mixed drivers"}</span>
-            <strong>{normalizeFeatureName(topFeature)}</strong>
-            <p>
-              Because the top feature is transformed into a band, the model is
-              less dependent on raw tax thresholds, but the result should still
-              be interpreted as strongly related to tax behavior.
-            </p>
-          </div>
-        </div>
+  <div className="highlight-insight">
+    <span>Shipment-driven model</span>
+    <strong>{normalizeFeatureName(topFeature)}</strong>
+    <p>
+      The final Decision Tree uses pre-risk shipment features only.
+      The strongest signal comes from shipment value and density-related
+      patterns, not from tax-derived shortcut variables.
+    </p>
+  </div>
+</div>
       </section>
 
       <section className="panel">
