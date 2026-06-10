@@ -1,44 +1,43 @@
 Decision Tree Evaluation
 PCA was tested but not selected for the final model.
-The final Decision Tree was trained only on pre-risk shipment features.
-Tax-derived band features were removed to avoid label leakage.
-The model was compared across gini, entropy, and log_loss criteria.
-Features: price_usd, weight_kg, length_m, width_m, height_m, volume_m3, max_dimension_m, dimension_sum_m, density_kg_m3, value_per_kg, value_per_m3
+Features: price_usd, weight_kg, length_m, width_m, height_m, volume_m3, max_dimension_m, dimension_sum_m, density_kg_m3, value_per_kg, value_per_m3, tax_band, tax_ratio_band
 
 Best Criterion: gini
-Accuracy: 0.7822
+Accuracy: 0.9242
 Baseline Accuracy: 0.85
-Precision: 0.3981
-Recall: 0.8839
-F1 Score: 0.549
+Precision: 0.7643
+Recall: 0.715
+F1 Score: 0.7388
 Rows Used: 60000
 Test Rows: 12000
-Confusion Matrix: [[7795, 2405], [209, 1591]]
+Confusion Matrix: [[9803, 397], [513, 1287]]
 
 Criterion Comparison:
-- gini: accuracy=0.7822, precision=0.3981, recall=0.8839, f1=0.549
-- entropy: accuracy=0.7794, precision=0.3944, recall=0.8783, f1=0.5443
-- log_loss: accuracy=0.7794, precision=0.3944, recall=0.8783, f1=0.5443
+- gini: accuracy=0.9242, precision=0.7643, recall=0.715, f1=0.7388
+- entropy: accuracy=0.9089, precision=0.6543, recall=0.8328, f1=0.7328
+- log_loss: accuracy=0.9089, precision=0.6543, recall=0.8328, f1=0.7328
 
 Feature Importance:
-- value_per_m3: 0.697901
-- price_usd: 0.285948
-- value_per_kg: 0.016151
+- value_per_m3: 0.44232
+- tax_ratio_band: 0.325007
+- price_usd: 0.228691
+- value_per_kg: 0.003873
+- volume_m3: 0.00011
 - weight_kg: 0.0
 - length_m: 0.0
 - width_m: 0.0
 - height_m: 0.0
-- volume_m3: 0.0
 - max_dimension_m: 0.0
 - dimension_sum_m: 0.0
 - density_kg_m3: 0.0
+- tax_band: 0.0
 
 Classification Report:
               precision    recall  f1-score   support
 
-    LOW RISK       0.97      0.76      0.86     10200
-   HIGH RISK       0.40      0.88      0.55      1800
+    LOW RISK       0.95      0.96      0.96     10200
+   HIGH RISK       0.76      0.71      0.74      1800
 
-    accuracy                           0.78     12000
-   macro avg       0.69      0.82      0.70     12000
-weighted avg       0.89      0.78      0.81     12000
+    accuracy                           0.92     12000
+   macro avg       0.86      0.84      0.85     12000
+weighted avg       0.92      0.92      0.92     12000

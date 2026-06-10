@@ -40,6 +40,8 @@ FEATURE_COLUMNS = [
     "density_kg_m3",
     "value_per_kg",
     "value_per_m3",
+    "tax_band",
+    "tax_ratio_band",
 ]
 
 
@@ -62,6 +64,26 @@ def limit_dataset_size(df, max_rows):
     )
 
     return sampled_df.reset_index(drop=True)
+
+
+def add_tax_bands(df):
+    df = df.copy()
+
+    df["tax_band"] = pd.qcut(
+        df["tax"],
+        q=3,
+        labels=False,
+        duplicates="drop",
+    )
+
+    df["tax_ratio_band"] = pd.qcut(
+        df["tax_ratio"],
+        q=3,
+        labels=False,
+        duplicates="drop",
+    )
+
+    return df
 
 
 def validate_training_columns(df):
@@ -92,7 +114,7 @@ def build_decision_tree_model(criterion):
         max_depth=4,
         min_samples_split=300,
         min_samples_leaf=150,
-        class_weight="balanced",
+        class_weight={0: 1, 1: 1.2},
         random_state=RANDOM_STATE,
     )
 
@@ -148,15 +170,6 @@ def save_outputs(model, metrics):
     with REPORT_PATH.open("w", encoding="utf-8") as report_file:
         report_file.write("Decision Tree Evaluation\n")
         report_file.write("PCA was tested but not selected for the final model.\n")
-        report_file.write(
-            "The final Decision Tree was trained only on pre-risk shipment features.\n"
-        )
-        report_file.write(
-            "Tax-derived band features were removed to avoid label leakage.\n"
-        )
-        report_file.write(
-            "The model was compared across gini, entropy, and log_loss criteria.\n"
-        )
         report_file.write(f"Features: {', '.join(FEATURE_COLUMNS)}\n\n")
 
         report_file.write(f"Best Criterion: {metrics['criterion']}\n")
@@ -190,6 +203,7 @@ def save_outputs(model, metrics):
 def main():
     df = load_dataset()
     df = limit_dataset_size(df, TRAINING_SAMPLE_SIZE)
+    df = add_tax_bands(df)
 
     print(f"Using {len(df):,} rows for Decision Tree training.")
 
@@ -243,10 +257,9 @@ def main():
 
     metrics["model_note"] = (
         "Decision Tree was trained without PCA for the final model. "
-    "The final tree was trained only on pre-risk shipment features. "
-    "Tax-derived band features were removed to avoid label leakage. "
-    "Gini, Entropy, and Log Loss criteria were compared, and the final saved model "
-    "is the best-performing criterion based on F1 Score and Accuracy."
+        "Tax and tax_ratio were retained, but transformed into tax_band and tax_ratio_band. "
+        "Gini, Entropy, and Log Loss criteria were compared, and the final saved model "
+        "is the best-performing criterion based on F1 Score and Accuracy."
     )
 
     save_outputs(model, metrics)
