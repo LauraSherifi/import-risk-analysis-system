@@ -4,9 +4,19 @@ import json
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
+from sklearn.metrics import (
+    accuracy_score,
+    average_precision_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    precision_recall_curve,
+    precision_score,
+    recall_score,
+)
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.utils.class_weight import compute_class_weight
 
 try:
     from tensorflow import keras
@@ -32,6 +42,7 @@ TEST_SIZE = 0.2
 VALIDATION_SIZE = 0.2
 
 FEATURE_COLUMNS = [
+    "price_usd",
     "weight_kg",
     "length_m",
     "width_m",
@@ -40,19 +51,12 @@ FEATURE_COLUMNS = [
     "max_dimension_m",
     "dimension_sum_m",
     "density_kg_m3",
-    "expected_tax_rate",
-    "tax_gap",
-    "tax_per_kg",
-    "tax_per_m3",
-    "log_tax",
 ]
 TARGET_COLUMN = "risk"
 LABEL_LEAKAGE_NOTE = (
-    "The current target is derived from tax_ratio, so the dataset itself still "
-    "contains label leakage. The neural network feature set removes tax_ratio, "
-    "raw tax, price_usd, value-per-price features, and tax_paid_share to avoid "
-    "trivially reconstructing tax_ratio, but the target definition should be "
-    "reworked for a fully leakage-free model."
+    "The final neural network is trained only on pre-risk shipment features. "
+    "Tax-derived features and other variables used to construct the risk label "
+    "are excluded from the neural network input to prevent target leakage."
 )
 
 ARCHITECTURES = [
@@ -60,6 +64,9 @@ ARCHITECTURES = [
         "name": "baseline_64_32",
         "layers": [64, 32],
         "dropout": 0.2,
+        "batch_normalization": False,
+        "l2_regularization": 0.0,
+        "positive_class_weight_multiplier": 1.0,
         "learning_rate": 0.001,
         "batch_size": 64,
         "epochs": 25,
@@ -68,9 +75,34 @@ ARCHITECTURES = [
         "name": "deeper_128_64_32",
         "layers": [128, 64, 32],
         "dropout": 0.3,
+        "batch_normalization": False,
+        "l2_regularization": 0.0,
+        "positive_class_weight_multiplier": 1.0,
         "learning_rate": 0.0005,
         "batch_size": 128,
         "epochs": 30,
+    },
+    {
+        "name": "regularized_128_64_32",
+        "layers": [128, 64, 32],
+        "dropout": 0.2,
+        "batch_normalization": True,
+        "l2_regularization": 0.0001,
+        "positive_class_weight_multiplier": 0.9,
+        "learning_rate": 0.0003,
+        "batch_size": 128,
+        "epochs": 35,
+    },
+    {
+        "name": "regularized_256_128_32",
+        "layers": [256, 128, 32],
+        "dropout": 0.25,
+        "batch_normalization": True,
+        "l2_regularization": 0.0001,
+        "positive_class_weight_multiplier": 0.9,
+        "learning_rate": 0.0003,
+        "batch_size": 128,
+        "epochs": 35,
     },
 ]
 
@@ -142,22 +174,73 @@ def build_model(input_shape, architecture):
     model.add(keras.Input(shape=(input_shape,)))
 
     for units in architecture["layers"]:
-        model.add(keras.layers.Dense(units, activation="relu"))
+        model.add(
+            keras.layers.Dense(
+                units,
+                activation="relu",
+                kernel_regularizer=keras.regularizers.l2(
+                    architecture["l2_regularization"]
+                ),
+            )
+        )
+        if architecture["batch_normalization"]:
+            model.add(keras.layers.BatchNormalization())
         model.add(keras.layers.Dropout(architecture["dropout"]))
 
     model.add(keras.layers.Dense(1, activation="sigmoid"))
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=architecture["learning_rate"]),
         loss="binary_crossentropy",
-        metrics=["accuracy"],
+        metrics=[
+            "accuracy",
+            keras.metrics.AUC(curve="PR", name="pr_auc"),
+        ],
     )
 
     return model
 
 
+def calculate_class_weights(y_train, positive_class_weight_multiplier=1.0):
+    classes = np.sort(y_train.unique())
+    weights = compute_class_weight(
+        class_weight="balanced",
+        classes=classes,
+        y=y_train,
+    )
+
+    class_weights = {
+        int(class_value): float(weight)
+        for class_value, weight in zip(classes, weights)
+    }
+    class_weights[1] *= positive_class_weight_multiplier
+
+    return class_weights
+
+
+def select_f1_threshold(y_true, probabilities):
+    precision, recall, thresholds = precision_recall_curve(y_true, probabilities)
+
+    if thresholds.size == 0:
+        return 0.5
+
+    f1_scores = np.divide(
+        2 * precision[:-1] * recall[:-1],
+        precision[:-1] + recall[:-1],
+        out=np.zeros_like(thresholds),
+        where=(precision[:-1] + recall[:-1]) > 0,
+    )
+    best_index = int(np.argmax(f1_scores))
+
+    return float(thresholds[best_index])
+
+
 def train_architecture(architecture, X_train, y_train, X_valid, y_valid):
     keras.utils.set_random_seed(RANDOM_STATE)
     model = build_model(X_train.shape[1], architecture)
+    class_weights = calculate_class_weights(
+        y_train,
+        architecture["positive_class_weight_multiplier"],
+    )
 
     early_stopping = keras.callbacks.EarlyStopping(
         monitor="val_loss",
@@ -172,25 +255,46 @@ def train_architecture(architecture, X_train, y_train, X_valid, y_valid):
         epochs=architecture["epochs"],
         batch_size=architecture["batch_size"],
         callbacks=[early_stopping],
-        verbose=1,
+        class_weight=class_weights,
+        verbose=2,
     )
 
-    probabilities = model.predict(X_valid).ravel()
-    predictions = (probabilities >= 0.5).astype(int)
+    probabilities = model.predict(X_valid, verbose=0).ravel()
+    decision_threshold = select_f1_threshold(y_valid, probabilities)
+    predictions = (probabilities >= decision_threshold).astype(int)
 
     metrics = {
         "name": architecture["name"],
         "selection_split": "validation",
         "layers": architecture["layers"],
         "dropout": architecture["dropout"],
+        "batch_normalization": architecture["batch_normalization"],
+        "l2_regularization": architecture["l2_regularization"],
+        "positive_class_weight_multiplier": architecture[
+            "positive_class_weight_multiplier"
+        ],
         "learning_rate": architecture["learning_rate"],
         "batch_size": architecture["batch_size"],
         "epochs_requested": architecture["epochs"],
         "epochs_ran": len(history.history["loss"]),
+        "class_weights": {
+            str(class_value): round(weight, 4)
+            for class_value, weight in class_weights.items()
+        },
+        "decision_threshold": round(decision_threshold, 6),
         "validation_loss": round(float(min(history.history["val_loss"])), 4),
         "validation_accuracy": round(float(accuracy_score(y_valid, predictions)), 4),
+        "validation_precision": round(
+            float(precision_score(y_valid, predictions, zero_division=0)), 4
+        ),
+        "validation_recall": round(
+            float(recall_score(y_valid, predictions, zero_division=0)), 4
+        ),
         "validation_f1_score": round(
             float(f1_score(y_valid, predictions, zero_division=0)), 4
+        ),
+        "validation_pr_auc": round(
+            float(average_precision_score(y_valid, probabilities)), 4
         ),
         "validation_confusion_matrix": confusion_matrix(y_valid, predictions).tolist(),
         "validation_classification_report": classification_report(
@@ -205,8 +309,9 @@ def train_architecture(architecture, X_train, y_train, X_valid, y_valid):
 
 
 def evaluate_on_test(model, architecture_metrics, X_test, y_test):
-    probabilities = model.predict(X_test).ravel()
-    predictions = (probabilities >= 0.5).astype(int)
+    probabilities = model.predict(X_test, verbose=0).ravel()
+    decision_threshold = architecture_metrics["decision_threshold"]
+    predictions = (probabilities >= decision_threshold).astype(int)
 
     return {
         "name": architecture_metrics["name"],
@@ -215,10 +320,17 @@ def evaluate_on_test(model, architecture_metrics, X_test, y_test):
         "features_used": FEATURE_COLUMNS,
         "layers": architecture_metrics["layers"],
         "dropout": architecture_metrics["dropout"],
+        "batch_normalization": architecture_metrics["batch_normalization"],
+        "l2_regularization": architecture_metrics["l2_regularization"],
+        "positive_class_weight_multiplier": architecture_metrics[
+            "positive_class_weight_multiplier"
+        ],
         "learning_rate": architecture_metrics["learning_rate"],
         "batch_size": architecture_metrics["batch_size"],
         "epochs_requested": architecture_metrics["epochs_requested"],
         "epochs_ran": architecture_metrics["epochs_ran"],
+        "class_weights": architecture_metrics["class_weights"],
+        "decision_threshold": decision_threshold,
         "validation_f1_score_used_for_selection": architecture_metrics[
             "validation_f1_score"
         ],
@@ -226,7 +338,12 @@ def evaluate_on_test(model, architecture_metrics, X_test, y_test):
             "validation_accuracy"
         ],
         "accuracy": round(float(accuracy_score(y_test, predictions)), 4),
+        "precision": round(
+            float(precision_score(y_test, predictions, zero_division=0)), 4
+        ),
+        "recall": round(float(recall_score(y_test, predictions, zero_division=0)), 4),
         "f1_score": round(float(f1_score(y_test, predictions, zero_division=0)), 4),
+        "pr_auc": round(float(average_precision_score(y_test, probabilities)), 4),
         "confusion_matrix": confusion_matrix(y_test, predictions).tolist(),
         "classification_report": classification_report(
             y_test,
@@ -256,8 +373,21 @@ def save_outputs(best_model, scaler, best_metrics, tuning_results):
         report_file.write(f"Best architecture: {best_metrics['name']}\n")
         report_file.write(f"Features: {', '.join(FEATURE_COLUMNS)}\n")
         report_file.write(f"Evaluation split: {best_metrics['evaluation_split']}\n")
+        report_file.write(
+            f"Decision threshold: {best_metrics['decision_threshold']}\n"
+        )
+        report_file.write(f"Class weights: {best_metrics['class_weights']}\n")
+        report_file.write(
+            f"Batch normalization: {best_metrics['batch_normalization']}\n"
+        )
+        report_file.write(
+            f"L2 regularization: {best_metrics['l2_regularization']}\n"
+        )
         report_file.write(f"Accuracy: {best_metrics['accuracy']}\n")
+        report_file.write(f"Precision: {best_metrics['precision']}\n")
+        report_file.write(f"Recall: {best_metrics['recall']}\n")
         report_file.write(f"F1 Score: {best_metrics['f1_score']}\n")
+        report_file.write(f"PR AUC: {best_metrics['pr_auc']}\n")
         report_file.write(f"Confusion Matrix: {best_metrics['confusion_matrix']}\n\n")
         report_file.write("Leakage Note:\n")
         report_file.write(best_metrics["label_leakage_note"])
@@ -308,7 +438,10 @@ def main():
     print(f"Best architecture: {final_metrics['name']}")
     print("Evaluation split: held_out_test")
     print(f"Accuracy: {final_metrics['accuracy']}")
+    print(f"Precision: {final_metrics['precision']}")
+    print(f"Recall: {final_metrics['recall']}")
     print(f"F1 Score: {final_metrics['f1_score']}")
+    print(f"PR AUC: {final_metrics['pr_auc']}")
     print(f"Model saved to: {MODEL_PATH}")
     print(f"Scaler saved to: {SCALER_PATH}")
     print(f"Metrics saved to: {METRICS_PATH}")

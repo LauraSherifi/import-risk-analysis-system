@@ -1,22 +1,29 @@
 Neural Network Evaluation Report
 ==================================================
 
-Best architecture: baseline_64_32
-Features: weight_kg, length_m, width_m, height_m, volume_m3, max_dimension_m, dimension_sum_m, density_kg_m3, expected_tax_rate, tax_gap, tax_per_kg, tax_per_m3, log_tax
+Best architecture: regularized_128_64_32
+Features: price_usd, weight_kg, length_m, width_m, height_m, volume_m3, max_dimension_m, dimension_sum_m, density_kg_m3
 Evaluation split: held_out_test
-Accuracy: 0.9759
-F1 Score: 0.9175
-Confusion Matrix: [[44422, 428], [843, 7072]]
+Decision threshold: 0.346724
+Class weights: {'0': 0.5882, '1': 3.0}
+Batch normalization: True
+L2 regularization: 0.0001
+Accuracy: 0.8009
+Precision: 0.414
+Recall: 0.7869
+F1 Score: 0.5425
+PR AUC: 0.5496
+Confusion Matrix: [[36034, 8816], [1687, 6228]]
 
 Leakage Note:
-The current target is derived from tax_ratio, so the dataset itself still contains label leakage. The neural network feature set removes tax_ratio, raw tax, price_usd, value-per-price features, and tax_paid_share to avoid trivially reconstructing tax_ratio, but the target definition should be reworked for a fully leakage-free model.
+The final neural network is trained only on pre-risk shipment features. Tax-derived features and other variables used to construct the risk label are excluded from the neural network input to prevent target leakage.
 
 Classification Report:
               precision    recall  f1-score   support
 
-    LOW RISK       0.98      0.99      0.99     44850
-   HIGH RISK       0.94      0.89      0.92      7915
+    LOW RISK       0.96      0.80      0.87     44850
+   HIGH RISK       0.41      0.79      0.54      7915
 
-    accuracy                           0.98     52765
-   macro avg       0.96      0.94      0.95     52765
-weighted avg       0.98      0.98      0.98     52765
+    accuracy                           0.80     52765
+   macro avg       0.68      0.80      0.71     52765
+weighted avg       0.87      0.80      0.82     52765

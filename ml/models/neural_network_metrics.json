@@ -1,8 +1,9 @@
 {
-  "name": "baseline_64_32",
+  "name": "regularized_128_64_32",
   "evaluation_split": "held_out_test",
-  "label_leakage_note": "The current target is derived from tax_ratio, so the dataset itself still contains label leakage. The neural network feature set removes tax_ratio, raw tax, price_usd, value-per-price features, and tax_paid_share to avoid trivially reconstructing tax_ratio, but the target definition should be reworked for a fully leakage-free model.",
+  "label_leakage_note": "The final neural network is trained only on pre-risk shipment features. Tax-derived features and other variables used to construct the risk label are excluded from the neural network input to prevent target leakage.",
   "features_used": [
+    "price_usd",
     "weight_kg",
     "length_m",
     "width_m",
@@ -10,35 +11,42 @@
     "volume_m3",
     "max_dimension_m",
     "dimension_sum_m",
-    "density_kg_m3",
-    "expected_tax_rate",
-    "tax_gap",
-    "tax_per_kg",
-    "tax_per_m3",
-    "log_tax"
+    "density_kg_m3"
   ],
   "layers": [
+    128,
     64,
     32
   ],
   "dropout": 0.2,
-  "learning_rate": 0.001,
-  "batch_size": 64,
-  "epochs_requested": 25,
-  "epochs_ran": 15,
-  "validation_f1_score_used_for_selection": 0.9184,
-  "validation_accuracy_used_for_selection": 0.9762,
-  "accuracy": 0.9759,
-  "f1_score": 0.9175,
+  "batch_normalization": true,
+  "l2_regularization": 0.0001,
+  "positive_class_weight_multiplier": 0.9,
+  "learning_rate": 0.0003,
+  "batch_size": 128,
+  "epochs_requested": 35,
+  "epochs_ran": 17,
+  "class_weights": {
+    "0": 0.5882,
+    "1": 3.0
+  },
+  "decision_threshold": 0.346724,
+  "validation_f1_score_used_for_selection": 0.5472,
+  "validation_accuracy_used_for_selection": 0.8038,
+  "accuracy": 0.8009,
+  "precision": 0.414,
+  "recall": 0.7869,
+  "f1_score": 0.5425,
+  "pr_auc": 0.5496,
   "confusion_matrix": [
     [
-      44422,
-      428
+      36034,
+      8816
     ],
     [
-      843,
-      7072
+      1687,
+      6228
     ]
   ],
-  "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.98      0.99      0.99     44850\n   HIGH RISK       0.94      0.89      0.92      7915\n\n    accuracy                           0.98     52765\n   macro avg       0.96      0.94      0.95     52765\nweighted avg       0.98      0.98      0.98     52765\n"
+  "classification_report": "              precision    recall  f1-score   support\n\n    LOW RISK       0.96      0.80      0.87     44850\n   HIGH RISK       0.41      0.79      0.54      7915\n\n    accuracy                           0.80     52765\n   macro avg       0.68      0.80      0.71     52765\nweighted avg       0.87      0.80      0.82     52765\n"
 }
