@@ -238,6 +238,10 @@ def lookup_expected_tax_rate(tax_category):
     return DEFAULT_EXPECTED_TAX_RATE
 
 
+def rank_normalize(series):
+    return series.rank(method="average", pct=True).fillna(0.0)
+
+
 def add_expected_tax_features(df):
     df = df.copy()
 
@@ -264,13 +268,21 @@ def add_expected_tax_features(df):
 def add_risk_column(df):
     df = df.copy()
 
-    # This target is still derived from tax_ratio, so tax-ratio leakage must be
-    # handled by downstream model feature selection until the label is redefined.
-    low_risk_threshold = df["tax_ratio"].quantile(0.15)
+    # The risk label is based on a composite score so it is not reducible to a
+    # single shortcut feature like tax_ratio.
+    tax_underpayment = df["tax_gap"].clip(lower=0)
+    paid_share_shortfall = (1.0 - df["tax_paid_share"]).clip(lower=0)
 
-    df["risk"] = df["tax_ratio"].apply(
-        lambda value: "HIGH RISK" if value < low_risk_threshold else "LOW RISK"
+    risk_score = (
+        0.45 * rank_normalize(tax_underpayment)
+        + 0.25 * rank_normalize(paid_share_shortfall)
+        + 0.15 * rank_normalize(df["value_per_m3"])
+        + 0.10 * rank_normalize(df["value_per_kg"])
+        + 0.05 * rank_normalize(df["density_kg_m3"])
     )
+
+    high_risk_threshold = risk_score.quantile(0.85)
+    df["risk"] = np.where(risk_score >= high_risk_threshold, "HIGH RISK", "LOW RISK")
 
     return df
 
