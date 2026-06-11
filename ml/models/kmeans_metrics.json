@@ -1,0 +1,111 @@
+{
+  "model": "K-Means",
+  "learning_type": "unsupervised clustering",
+  "rows_used": 263821,
+  "features_used": [
+    "price_usd",
+    "weight_kg",
+    "length_m",
+    "width_m",
+    "height_m",
+    "volume_m3",
+    "max_dimension_m",
+    "dimension_sum_m",
+    "density_kg_m3",
+    "value_per_kg",
+    "value_per_m3"
+  ],
+  "selected_clusters": 2,
+  "cluster_selection": [
+    {
+      "clusters": 2,
+      "silhouette_score": 0.8856,
+      "inertia": 2201126.45
+    },
+    {
+      "clusters": 3,
+      "silhouette_score": 0.8753,
+      "inertia": 1813074.55
+    },
+    {
+      "clusters": 4,
+      "silhouette_score": 0.4733,
+      "inertia": 1458672.84
+    },
+    {
+      "clusters": 5,
+      "silhouette_score": 0.5027,
+      "inertia": 1220614.72
+    },
+    {
+      "clusters": 6,
+      "silhouette_score": 0.5053,
+      "inertia": 1005494.67
+    },
+    {
+      "clusters": 7,
+      "silhouette_score": 0.5058,
+      "inertia": 782549.35
+    },
+    {
+      "clusters": 8,
+      "silhouette_score": 0.5135,
+      "inertia": 677359.71
+    }
+  ],
+  "silhouette_score": 0.8856,
+  "calinski_harabasz_score": 84007.87,
+  "inertia": 2201126.45,
+  "adjusted_rand_index_vs_risk": -0.0013,
+  "normalized_mutual_info_vs_risk": 0.0,
+  "majority_mapped_accuracy_vs_risk": 0.85,
+  "majority_class_baseline_accuracy": 0.85,
+  "accuracy_improvement_over_baseline": 0.0,
+  "cluster_to_risk_mapping": {
+    "0": "LOW RISK",
+    "1": "LOW RISK"
+  },
+  "cluster_profiles": [
+    {
+      "cluster": 0,
+      "rows": 1870,
+      "dataset_share": 0.0071,
+      "high_risk_rows": 249,
+      "high_risk_rate": 0.1332,
+      "feature_means": {
+        "price_usd": 108732.28,
+        "weight_kg": 704.7387,
+        "length_m": 21.2655,
+        "width_m": 1.7692,
+        "height_m": 1.8659,
+        "volume_m3": 145.3703,
+        "max_dimension_m": 21.2655,
+        "dimension_sum_m": 24.9006,
+        "density_kg_m3": 4.3724,
+        "value_per_kg": 82.6751,
+        "value_per_m3": 386.0955
+      }
+    },
+    {
+      "cluster": 1,
+      "rows": 261951,
+      "dataset_share": 0.9929,
+      "high_risk_rows": 39325,
+      "high_risk_rate": 0.1501,
+      "feature_means": {
+        "price_usd": 3448.1924,
+        "weight_kg": 321.4638,
+        "length_m": 0.809,
+        "width_m": 0.5214,
+        "height_m": 0.4526,
+        "volume_m3": 0.5505,
+        "max_dimension_m": 0.8697,
+        "dimension_sum_m": 1.783,
+        "density_kg_m3": 6007.0468,
+        "value_per_kg": 113.0687,
+        "value_per_m3": 37537.02
+      }
+    }
+  ],
+  "interpretation_note": "Risk labels were not used to train K-Means. Comparisons with risk are post-training diagnostics only and should not be treated as supervised classification performance."
+}

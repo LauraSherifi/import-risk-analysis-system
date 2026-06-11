@@ -1,0 +1,29 @@
+K-MEANS CLUSTERING REPORT
+==================================================
+
+Rows used: 263821
+Selected clusters: 2
+Silhouette score: 0.8856
+Calinski-Harabasz score: 84007.87
+Inertia: 2201126.45
+Adjusted Rand index vs risk: -0.0013
+Normalized mutual information vs risk: 0.0
+Majority-mapped accuracy vs risk: 0.85
+
+Majority-class baseline accuracy: 0.85
+Accuracy improvement over baseline: 0.0
+
+Cluster selection:
+- k=2: silhouette=0.8856, inertia=2201126.45
+- k=3: silhouette=0.8753, inertia=1813074.55
+- k=4: silhouette=0.4733, inertia=1458672.84
+- k=5: silhouette=0.5027, inertia=1220614.72
+- k=6: silhouette=0.5053, inertia=1005494.67
+- k=7: silhouette=0.5058, inertia=782549.35
+- k=8: silhouette=0.5135, inertia=677359.71
+
+Cluster profiles:
+- Cluster 0: rows=1870, share=0.0071, high-risk rate=0.1332
+- Cluster 1: rows=261951, share=0.9929, high-risk rate=0.1501
+
+Note: Risk labels were not used to train K-Means. Comparisons with risk are post-training diagnostics only and should not be treated as supervised classification performance.
