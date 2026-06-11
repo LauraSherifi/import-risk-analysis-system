@@ -177,48 +177,137 @@ function parseNonNegativeNumber(value, fieldName) {
   };
 }
 
-function buildPredictionPayload(body) {
-  const taxResult = parseNonNegativeNumber(body.tax, "tax");
-  if (!taxResult.ok) {
-    return taxResult;
-  }
-
-  if (body.tax_ratio != null && body.tax_ratio !== "") {
-    const taxRatioResult = parseNonNegativeNumber(body.tax_ratio, "tax_ratio");
-    if (!taxRatioResult.ok) {
-      return taxRatioResult;
-    }
-
+function parseOptionalNonNegativeNumber(value, fieldName) {
+  if (value == null || value === "") {
     return {
       ok: true,
-      payload: {
-        tax: Number(taxResult.value.toFixed(2)),
-        tax_ratio: Number(taxRatioResult.value.toFixed(4)),
-      },
+      value: null,
     };
   }
 
-  const priceResult = parseNonNegativeNumber(body.price, "price");
-  if (!priceResult.ok) {
+  const parsedValue = Number(value);
+
+  if (!Number.isFinite(parsedValue)) {
     return {
       ok: false,
-      error: "Provide either tax_ratio directly or provide price so tax_ratio can be calculated",
+      error: `${fieldName} must be a valid number`,
     };
   }
 
-  if (priceResult.value === 0) {
+  if (parsedValue < 0) {
     return {
       ok: false,
-      error: "price must be greater than 0 when tax_ratio is not provided",
+      error: `${fieldName} must be greater than or equal to 0`,
     };
   }
 
   return {
     ok: true,
+    value: parsedValue,
+  };
+}
+
+function estimateDimensionsFromVolume(volume) {
+  const safeVolume = Math.max(Number(volume) || 0, 0.000001);
+  const edge = Math.cbrt(safeVolume);
+
+  return {
+    length_m: edge,
+    width_m: edge,
+    height_m: edge,
+  };
+}
+
+function buildNeuralNetworkPayload(body) {
+  const priceValue = parseNonNegativeNumber(body.price_usd ?? body.price, "price");
+  if (!priceValue.ok) {
+    return priceValue;
+  }
+
+  const weightValue = parseNonNegativeNumber(body.weight_kg ?? body.weight, "weight_kg");
+  if (!weightValue.ok) {
+    return weightValue;
+  }
+
+  const volumeValue = parseNonNegativeNumber(body.volume_m3 ?? body.volume, "volume_m3");
+  if (!volumeValue.ok) {
+    return volumeValue;
+  }
+
+  const rawLength = parseOptionalNonNegativeNumber(body.length_m ?? body.length, "length_m");
+  if (!rawLength.ok) {
+    return rawLength;
+  }
+
+  const rawWidth = parseOptionalNonNegativeNumber(body.width_m ?? body.width, "width_m");
+  if (!rawWidth.ok) {
+    return rawWidth;
+  }
+
+  const rawHeight = parseOptionalNonNegativeNumber(body.height_m ?? body.height, "height_m");
+  if (!rawHeight.ok) {
+    return rawHeight;
+  }
+
+  const fallbackDimensions = estimateDimensionsFromVolume(volumeValue.value);
+
+  const lengthM = rawLength.value ?? fallbackDimensions.length_m;
+  const widthM = rawWidth.value ?? fallbackDimensions.width_m;
+  const heightM = rawHeight.value ?? fallbackDimensions.height_m;
+
+  const rawMaxDimension = parseOptionalNonNegativeNumber(
+    body.max_dimension_m,
+    "max_dimension_m"
+  );
+  if (!rawMaxDimension.ok) {
+    return rawMaxDimension;
+  }
+
+  const rawDimensionSum = parseOptionalNonNegativeNumber(
+    body.dimension_sum_m,
+    "dimension_sum_m"
+  );
+  if (!rawDimensionSum.ok) {
+    return rawDimensionSum;
+  }
+
+  const rawDensity = parseOptionalNonNegativeNumber(body.density_kg_m3, "density_kg_m3");
+  if (!rawDensity.ok) {
+    return rawDensity;
+  }
+
+  const maxDimensionM = rawMaxDimension.value ?? Math.max(lengthM, widthM, heightM);
+  const dimensionSumM = rawDimensionSum.value ?? lengthM + widthM + heightM;
+  const densityKgM3 =
+    rawDensity.value ?? (volumeValue.value > 0 ? weightValue.value / volumeValue.value : 0);
+
+  return {
+    ok: true,
     payload: {
-      tax: Number(taxResult.value.toFixed(2)),
-      tax_ratio: Number((taxResult.value / priceResult.value).toFixed(4)),
+      price_usd: Number(priceValue.value.toFixed(2)),
+      weight_kg: Number(weightValue.value.toFixed(3)),
+      length_m: Number(lengthM.toFixed(3)),
+      width_m: Number(widthM.toFixed(3)),
+      height_m: Number(heightM.toFixed(3)),
+      volume_m3: Number(volumeValue.value.toFixed(4)),
+      max_dimension_m: Number(maxDimensionM.toFixed(3)),
+      dimension_sum_m: Number(dimensionSumM.toFixed(3)),
+      density_kg_m3: Number(densityKgM3.toFixed(2)),
     },
+  };
+}
+
+function buildSamplePredictionPayload(sample) {
+  return {
+    price_usd: Number(sample.priceUsd ?? 0),
+    weight_kg: Number(sample.weightKg ?? 0),
+    length_m: Number(sample.lengthM ?? 0),
+    width_m: Number(sample.widthM ?? 0),
+    height_m: Number(sample.heightM ?? 0),
+    volume_m3: Number(sample.volumeM3 ?? 0),
+    max_dimension_m: Number(sample.maxDimensionM ?? 0),
+    dimension_sum_m: Number(sample.dimensionSumM ?? 0),
+    density_kg_m3: Number(sample.densityKgM3 ?? 0),
   };
 }
 
@@ -628,10 +717,7 @@ async function scoreSampleWithMl(sample) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        tax: Number(sample.taxUsd ?? 0),
-        tax_ratio: Number(sample.taxRatio ?? 0),
-      }),
+      body: JSON.stringify(buildSamplePredictionPayload(sample)),
     });
 
     if (!response.ok) {
@@ -766,7 +852,7 @@ app.get("/ml-health", requireAuth, async (req, res) => {
 });
 
 app.post("/predict", requireAuth, async (req, res) => {
-  const predictionPayload = buildPredictionPayload(req.body || {});
+  const predictionPayload = buildNeuralNetworkPayload(req.body || {});
 
   if (!predictionPayload.ok) {
     return res.status(400).json({
@@ -775,25 +861,49 @@ app.post("/predict", requireAuth, async (req, res) => {
   }
 
   try {
-    const metadata = {
-      product_name:
-        typeof req.body?.product_name === "string"
-          ? req.body.product_name.trim()
-          : "",
+      const metadata = {
+        product_name:
+          typeof req.body?.product_name === "string"
+            ? req.body.product_name.trim()
+            : "",
       destination_port:
         typeof req.body?.destination_port === "string"
           ? req.body.destination_port.trim()
           : "",
-      price: Number.isFinite(Number(req.body?.price))
-        ? Number(req.body.price)
-        : null,
-      weight_kg: Number.isFinite(Number(req.body?.weight_kg))
-        ? Number(req.body.weight_kg)
-        : null,
-      volume_m3: Number.isFinite(Number(req.body?.volume_m3))
-        ? Number(req.body.volume_m3)
-        : null,
-    };
+        price: Number.isFinite(Number(req.body?.price_usd ?? req.body?.price))
+          ? Number(req.body.price_usd ?? req.body.price)
+          : null,
+        weight_kg: Number.isFinite(Number(req.body?.weight_kg))
+          ? Number(req.body.weight_kg)
+          : null,
+        volume_m3: Number.isFinite(Number(req.body?.volume_m3))
+          ? Number(req.body.volume_m3)
+          : null,
+        length_m: Number.isFinite(Number(req.body?.length_m))
+          ? Number(req.body.length_m)
+          : null,
+        width_m: Number.isFinite(Number(req.body?.width_m))
+          ? Number(req.body.width_m)
+          : null,
+        height_m: Number.isFinite(Number(req.body?.height_m))
+          ? Number(req.body.height_m)
+          : null,
+        max_dimension_m: Number.isFinite(Number(req.body?.max_dimension_m))
+          ? Number(req.body.max_dimension_m)
+          : null,
+        dimension_sum_m: Number.isFinite(Number(req.body?.dimension_sum_m))
+          ? Number(req.body.dimension_sum_m)
+          : null,
+        density_kg_m3: Number.isFinite(Number(req.body?.density_kg_m3))
+          ? Number(req.body.density_kg_m3)
+          : null,
+        tax: Number.isFinite(Number(req.body?.tax))
+          ? Number(req.body.tax)
+          : null,
+        tax_ratio: Number.isFinite(Number(req.body?.tax_ratio))
+          ? Number(req.body.tax_ratio)
+          : null,
+      };
 
     const response = await fetch(`${ML_SERVICE_URL}/predict`, {
       method: "POST",

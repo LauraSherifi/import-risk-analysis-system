@@ -1,8 +1,8 @@
 export const modelPages = [
   {
-    id: "decision-tree",
-    label: "Decision Tree",
-    path: "/models/decision-tree",
+    id: "random-forest",
+    label: "Random Forest",
+    path: "/models/random-forest",
     status: "ready",
     visible: true,
   },

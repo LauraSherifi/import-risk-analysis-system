@@ -6,7 +6,7 @@ function getRouteMeta(pathname) {
     case "/app/dashboard":
       return {
         label: "Dashboard",
-        prompt: "Ask about risk share, top ports, or completed model performance.",
+        prompt: "Ask about risk share, top ports, or the active Neural Network model with Random Forest comparison.",
         suggestions: [
           "What does this page show?",
           "Summarize the most important dashboard insights.",
@@ -26,10 +26,10 @@ function getRouteMeta(pathname) {
     case "/app/prediction":
       return {
         label: "Prediction Lab",
-        prompt: "Ask how predictions work, what the benchmarks mean, or what recent predictions show.",
+        prompt: "Ask how the Neural Network prediction flow works or what the benchmarks mean.",
         suggestions: [
           "How does this prediction page use the model?",
-          "What do the tax ratio bands mean here?",
+          "What do the shipment feature summaries mean here?",
           "Explain this page like I am presenting it.",
         ],
       };
@@ -61,6 +61,16 @@ function getRouteMeta(pathname) {
           "Is this neural network page fully connected?",
           "How should I describe this page in the demo?",
           "What is still missing here?",
+        ],
+      };
+    case "/app/models/random-forest":
+      return {
+        label: "Random Forest Model",
+        prompt: "Ask about Random Forest metrics, the confusion matrix, or how it compares with the other models.",
+        suggestions: [
+          "What does this Random Forest page show?",
+          "How should I explain the Random Forest performance?",
+          "Why does this model matter in the comparison?",
         ],
       };
     case "/app/models/svm":

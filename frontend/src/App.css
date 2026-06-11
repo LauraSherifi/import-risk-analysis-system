@@ -293,12 +293,13 @@ input {
 
 .app-shell {
   display: flex;
+  position: relative;
   height: 100vh;
   overflow: hidden;
 }
 
 .sidebar {
-  width: 240px;
+  width: 250px;
   height: 100vh;
   position: sticky;
   top: 0;
@@ -306,6 +307,71 @@ input {
   background: linear-gradient(180deg, #0d416f, #082b49);
   color: white;
   padding: 24px;
+  flex-shrink: 0;
+  transition:
+    width 220ms ease,
+    transform 220ms ease,
+    opacity 220ms ease;
+}
+
+.sidebar-toggle {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(15, 76, 129, 0.95);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 16px 32px rgba(15, 76, 129, 0.24);
+}
+
+.sidebar-toggle-mobile {
+  display: none;
+}
+
+.sidebar-toggle span {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sidebar-toggle-icon {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-toggle-icon i {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+.app-shell.sidebar-collapsed .sidebar {
+  width: 94px;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.app-shell.sidebar-collapsed .sidebar-brand {
+  justify-content: center;
+}
+
+.app-shell.sidebar-collapsed .sidebar-brand-copy,
+.app-shell.sidebar-collapsed .sidebar-summary,
+.app-shell.sidebar-collapsed nav,
+.app-shell.sidebar-collapsed .sidebar-logout {
+  display: none;
+}
+
+.app-shell.sidebar-collapsed .main {
+  padding-left: 30px;
 }
 
 .sidebar-brand {
@@ -458,7 +524,7 @@ nav a:hover {
 .main {
   flex: 1;
   height: 100vh;
-  padding: 30px;
+  padding: 30px 30px 30px 78px;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -5423,21 +5489,64 @@ canvas {
 @media (max-width: 900px) {
   .app-shell {
     width: 100%;
-    height: auto !important;
+    height: 100dvh;
     min-height: 100dvh;
-    flex-direction: column;
-    overflow: visible !important;
+    flex-direction: row;
+    overflow: hidden !important;
   }
 
   .sidebar {
-    width: 100% !important;
-    height: auto !important;
-    min-height: auto !important;
-    position: relative !important;
-    top: auto !important;
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(320px, 84vw);
+    max-width: 100%;
+    height: 100dvh;
+    min-height: 100dvh;
     padding: 18px;
-    overflow: visible !important;
-    border-radius: 0 0 22px 22px;
+    z-index: 22;
+    border-radius: 0 22px 22px 0;
+    transform: translateX(-102%);
+    box-shadow: 20px 0 48px rgba(8, 43, 73, 0.32);
+  }
+
+  .app-shell.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .sidebar-toggle {
+    align-self: flex-end;
+  }
+
+  .sidebar-toggle-mobile {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 24;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    box-shadow: 0 14px 28px rgba(15, 76, 129, 0.22);
+  }
+
+  .app-shell.sidebar-open .sidebar-toggle-mobile {
+    left: calc(min(320px, 84vw) - 60px);
+  }
+
+  .sidebar-toggle-mobile .sidebar-toggle-icon {
+    gap: 5px;
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 21;
+    display: block;
+    border: none;
+    background: rgba(4, 16, 29, 0.42);
+    cursor: pointer;
   }
 
   .sidebar-brand {
@@ -5465,28 +5574,28 @@ canvas {
 
   nav {
     margin-top: 16px;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: 10px;
   }
 
   nav a {
-    text-align: center;
-    padding: 11px 10px;
+    text-align: left;
+    padding: 11px 12px;
     font-size: 14px;
   }
 
   .nav-section-title {
-    grid-column: 1 / -1;
     margin-top: 10px;
   }
 
   .main {
     width: 100%;
-    height: auto !important;
-    min-height: auto;
-    overflow: visible !important;
-    padding: 18px;
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 72px 18px 18px;
   }
 
   .page-header {
@@ -5568,7 +5677,7 @@ canvas {
   }
 
   .main {
-    padding: 14px;
+    padding: 72px 14px 14px;
   }
 
   .page-header h1 {

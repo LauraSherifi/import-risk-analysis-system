@@ -116,7 +116,15 @@ function normalizePredictionSample(row, index) {
     destinationPort: row.destination_port || "Unknown",
     priceUsd: round(row.price_usd, 2),
     weightKg: round(row.weight_kg, 3),
+    lengthM: round(row.length_m, 3),
+    widthM: round(row.width_m, 3),
+    heightM: round(row.height_m, 3),
     volumeM3: round(row.volume_m3, 4),
+    maxDimensionM: round(row.max_dimension_m, 3),
+    dimensionSumM: round(row.dimension_sum_m, 3),
+    densityKgM3: round(row.density_kg_m3, 2),
+    valuePerKg: round(row.value_per_kg, 4),
+    valuePerM3: round(row.value_per_m3, 4),
     taxUsd: round(row.tax, 2),
     taxRatio: round(row.tax_ratio, 4),
     taxCategory: row.tax_category || "general_goods",
@@ -353,7 +361,15 @@ function buildSampleRows(rows, limit = 10) {
     product_name: row.product_name,
     price_usd: toNumber(row.price_usd),
     weight_kg: toNumber(row.weight_kg),
+    length_m: toNumber(row.length_m),
+    width_m: toNumber(row.width_m),
+    height_m: toNumber(row.height_m),
     volume_m3: toNumber(row.volume_m3),
+    max_dimension_m: toNumber(row.max_dimension_m),
+    dimension_sum_m: toNumber(row.dimension_sum_m),
+    density_kg_m3: toNumber(row.density_kg_m3),
+    value_per_kg: toNumber(row.value_per_kg),
+    value_per_m3: toNumber(row.value_per_m3),
     tax: toNumber(row.tax),
     tax_ratio: toNumber(row.tax_ratio),
     tax_category: row.tax_category,
@@ -403,7 +419,15 @@ function buildNumericSummary(rows) {
   return {
     price_usd: Number(average(rows, "price_usd").toFixed(2)),
     weight_kg: Number(average(rows, "weight_kg").toFixed(2)),
+    length_m: Number(average(rows, "length_m").toFixed(3)),
+    width_m: Number(average(rows, "width_m").toFixed(3)),
+    height_m: Number(average(rows, "height_m").toFixed(3)),
     volume_m3: Number(average(rows, "volume_m3").toFixed(4)),
+    max_dimension_m: Number(average(rows, "max_dimension_m").toFixed(3)),
+    dimension_sum_m: Number(average(rows, "dimension_sum_m").toFixed(3)),
+    density_kg_m3: Number(average(rows, "density_kg_m3").toFixed(2)),
+    value_per_kg: Number(average(rows, "value_per_kg").toFixed(4)),
+    value_per_m3: Number(average(rows, "value_per_m3").toFixed(4)),
     tax: Number(average(rows, "tax").toFixed(2)),
     tax_ratio: Number(average(rows, "tax_ratio").toFixed(4)),
     expected_tax_rate: Number(average(rows, "expected_tax_rate").toFixed(4)),
@@ -459,7 +483,7 @@ function buildDatasetSummary() {
 function buildDashboardSummary() {
   const dataset = buildDatasetSummary();
 
-  const decisionTree = readJsonFile("decision_tree_metrics.json");
+  const randomForest = readJsonFile("random_forest_metrics.json");
   const neuralNetwork = readJsonFile("neural_network_metrics.json");
   const svm = readJsonFile("svm_metrics.json");
   const highRiskShare =
@@ -486,9 +510,9 @@ function buildDashboardSummary() {
         note: "Final cleaned shipment records",
       },
       {
-        label: "Completed Models",
-        value: "3",
-        note: "Decision Tree, Neural Network, and SVM",
+        label: "Primary Model",
+        value: "Neural Network",
+        note: "Active model for risk-focused predictions",
       },
       {
         label: "High Risk Share",
@@ -510,7 +534,7 @@ function buildDashboardSummary() {
     feature_impact: dataset.feature_impact,
     data_quality: dataset.data_quality,
     models: {
-      decision_tree: decisionTree,
+      random_forest: randomForest,
       neural_network: neuralNetwork,
       svm,
     },
@@ -632,44 +656,38 @@ function buildDecisionTreeData() {
 }
 
 function buildModelComparisonMetrics() {
-  const decisionTreeMetrics = readJsonFile("decision_tree_metrics.json") || {};
+  const randomForestMetrics = readJsonFile("random_forest_metrics.json") || {};
   const neuralNetworkMetrics = readJsonFile("neural_network_metrics.json") || {};
   const svmMetrics = readJsonFile("svm_metrics.json") || {};
 
-  const decisionTreeAccuracy = round((decisionTreeMetrics.accuracy ?? 0) * 100, 2);
+  const randomForestAccuracy = round((randomForestMetrics.accuracy ?? 0) * 100, 2);
   const neuralNetworkAccuracy = round((neuralNetworkMetrics.accuracy ?? 0) * 100, 2);
   const svmAccuracy = round((svmMetrics.accuracy ?? 0) * 100, 2);
 
-  const decisionTreeF1 = round((decisionTreeMetrics.f1_score ?? 0) * 100, 2);
+  const randomForestF1 = round((randomForestMetrics.f1_score ?? 0) * 100, 2);
   const neuralNetworkF1 = round((neuralNetworkMetrics.f1_score ?? 0) * 100, 2);
   const svmF1 = round((svmMetrics.f1_score ?? 0) * 100, 2);
 
-  const decisionTreePrecision = round((decisionTreeMetrics.precision ?? 0) * 100, 2);
-  const neuralNetworkPrecision = round(
-    (neuralNetworkMetrics.classification_report?.["HIGH RISK"]?.precision ?? 0) * 100,
-    2
-  );
+  const randomForestPrecision = round((randomForestMetrics.precision ?? 0) * 100, 2);
+  const neuralNetworkPrecision = round((neuralNetworkMetrics.precision ?? 0) * 100, 2);
   const svmPrecision = round((svmMetrics.precision ?? 0) * 100, 2);
 
-  const decisionTreeRecall = round((decisionTreeMetrics.recall ?? 0) * 100, 2);
-  const neuralNetworkRecall = round(
-    (neuralNetworkMetrics.classification_report?.["HIGH RISK"]?.recall ?? 0) * 100,
-    2
-  );
+  const randomForestRecall = round((randomForestMetrics.recall ?? 0) * 100, 2);
+  const neuralNetworkRecall = round((neuralNetworkMetrics.recall ?? 0) * 100, 2);
   const svmRecall = round((svmMetrics.recall ?? 0) * 100, 2);
 
   return [
     {
       id: "accuracy",
       title: "Accuracy",
-      decisionTree: decisionTreeAccuracy,
+      randomForest: randomForestAccuracy,
       neuralNetwork: neuralNetworkAccuracy,
       svm: svmAccuracy,
       description:
         "Accuracy compares how often each saved model correctly classifies shipment records across the evaluation split.",
       recommendation:
-        decisionTreeAccuracy >= neuralNetworkAccuracy && decisionTreeAccuracy >= svmAccuracy
-          ? "Decision Tree currently leads on overall correctness, so it is the strongest reference point."
+        randomForestAccuracy >= neuralNetworkAccuracy && randomForestAccuracy >= svmAccuracy
+          ? "Random Forest currently leads on overall correctness, so it is the strongest reference point."
           : neuralNetworkAccuracy >= svmAccuracy
             ? "Neural Network currently leads on overall correctness, so it deserves the spotlight."
             : "SVM currently leads on overall correctness, so it should be highlighted more.",
@@ -677,14 +695,14 @@ function buildModelComparisonMetrics() {
     {
       id: "f1",
       title: "F1 Score",
-      decisionTree: decisionTreeF1,
+      randomForest: randomForestF1,
       neuralNetwork: neuralNetworkF1,
       svm: svmF1,
       description:
         "F1 Score balances precision and recall so high-risk detection is not judged by accuracy alone.",
       recommendation:
-        decisionTreeF1 >= neuralNetworkF1 && decisionTreeF1 >= svmF1
-          ? "Decision Tree has the strongest balance here, which makes it easy to explain."
+        randomForestF1 >= neuralNetworkF1 && randomForestF1 >= svmF1
+          ? "Random Forest has the strongest balance here, which makes it easy to explain."
           : neuralNetworkF1 >= svmF1
             ? "Neural Network has the strongest balance here, so its behavior should be highlighted more clearly."
             : "SVM has the strongest balance here, which makes it a useful risk-focused reference.",
@@ -692,14 +710,14 @@ function buildModelComparisonMetrics() {
     {
       id: "precision",
       title: "Precision",
-      decisionTree: decisionTreePrecision,
+      randomForest: randomForestPrecision,
       neuralNetwork: neuralNetworkPrecision,
       svm: svmPrecision,
       description:
         "Precision shows how trustworthy a HIGH RISK prediction is once the model raises an alert.",
       recommendation:
-        decisionTreePrecision >= neuralNetworkPrecision && decisionTreePrecision >= svmPrecision
-          ? "Decision Tree produces the cleanest risk flags here."
+        randomForestPrecision >= neuralNetworkPrecision && randomForestPrecision >= svmPrecision
+          ? "Random Forest produces the cleanest risk flags here."
           : neuralNetworkPrecision >= svmPrecision
             ? "Neural Network produces the cleanest risk flags here."
             : "SVM produces the cleanest risk flags here.",
@@ -707,14 +725,14 @@ function buildModelComparisonMetrics() {
     {
       id: "recall",
       title: "Recall",
-      decisionTree: decisionTreeRecall,
+      randomForest: randomForestRecall,
       neuralNetwork: neuralNetworkRecall,
       svm: svmRecall,
       description:
         "Recall measures how many of the truly risky shipments the model manages to catch.",
       recommendation:
-        decisionTreeRecall >= neuralNetworkRecall && decisionTreeRecall >= svmRecall
-          ? "Decision Tree recovers the most risky shipments here."
+        randomForestRecall >= neuralNetworkRecall && randomForestRecall >= svmRecall
+          ? "Random Forest recovers the most risky shipments here."
           : neuralNetworkRecall >= svmRecall
             ? "Neural Network recovers the most risky shipments here."
             : "SVM recovers the most risky shipments here, which matters when missing risk is costly.",
@@ -741,7 +759,7 @@ function buildPredictionLabContext() {
   };
 
   const sampleCollections = buildSampleCollections(normalizedSamples, quartiles);
-  const svmMetrics = readJsonFile("svm_metrics.json") || {};
+  const neuralNetworkMetrics = readJsonFile("neural_network_metrics.json") || {};
 
   predictionLabContextCache = {
     totalShipments: dataset.total_records,
@@ -756,14 +774,24 @@ function buildPredictionLabContext() {
     averageTaxRatio: round(dataset.numeric_summary.tax_ratio, 4),
     averagePriceUsd: round(dataset.numeric_summary.price_usd, 2),
     averageWeightKg: round(dataset.numeric_summary.weight_kg, 2),
+    averageLengthM: round(dataset.numeric_summary.length_m, 3),
+    averageWidthM: round(dataset.numeric_summary.width_m, 3),
+    averageHeightM: round(dataset.numeric_summary.height_m, 3),
+    averageVolumeM3: round(dataset.numeric_summary.volume_m3, 4),
+    averageMaxDimensionM: round(dataset.numeric_summary.max_dimension_m, 3),
+    averageDimensionSumM: round(dataset.numeric_summary.dimension_sum_m, 3),
+    averageDensityKgM3: round(dataset.numeric_summary.density_kg_m3, 2),
     averageTaxUsd: round(dataset.numeric_summary.tax, 2),
     taxRatioQuartiles: quartiles,
     model: {
-      name: svmMetrics.model || "SVM Classifier",
-      accuracy: round((svmMetrics.accuracy ?? 0) * 100, 2),
-      macroF1: round((svmMetrics.f1_score ?? 0) * 100, 2),
-      rowsUsed: Number(svmMetrics.rows_used ?? 0),
-      testRows: Number(svmMetrics.test_rows ?? 0),
+      name: neuralNetworkMetrics.model || "Neural Network",
+      architecture: neuralNetworkMetrics.name || null,
+      accuracy: round((neuralNetworkMetrics.accuracy ?? 0) * 100, 2),
+      macroF1: round((neuralNetworkMetrics.f1_score ?? 0) * 100, 2),
+      rowsUsed: Number(neuralNetworkMetrics.rows_used ?? 0),
+      testRows: Number(neuralNetworkMetrics.test_rows ?? 0),
+      decisionThreshold: neuralNetworkMetrics.decision_threshold ?? null,
+      featuresUsed: neuralNetworkMetrics.features_used ?? [],
     },
     topPorts: dataset.top_ports.map((item) => ({
       name: item.port,

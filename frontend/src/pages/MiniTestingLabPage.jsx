@@ -443,7 +443,7 @@ function MiniTestingLabPage() {
     algorithmMetrics[0] || {
       id: "accuracy",
       title: "Accuracy",
-      decisionTree: 0,
+      randomForest: 0,
       neuralNetwork: 0,
       svm: 0,
       description: "Live model comparison is loading.",
@@ -935,7 +935,7 @@ function MiniTestingLabPage() {
           <h1>Mini Testing Lab</h1>
           <p>
             Interactive checks built from the real shipment dataset, saved
-            Decision Tree, Neural Network, and SVM evaluation artifacts in this
+            Random Forest, Neural Network, and SVM evaluation artifacts in this
             project.
           </p>
         </div>
@@ -1090,7 +1090,7 @@ function MiniTestingLabPage() {
             <div>
               <h3>Algorithm Results</h3>
               <p>
-                Compare the real saved evaluation results for Decision Tree,
+                Compare the real saved evaluation results for Random Forest,
                 Neural Network, and SVM from this project&apos;s model artifacts.
               </p>
             </div>
@@ -1117,12 +1117,12 @@ function MiniTestingLabPage() {
 
           <div className="lab-confidence-grid">
             <div className="lab-confidence-card">
-              <span>Decision Tree result</span>
-              <strong>{selectedMetric.decisionTree.toFixed(2)}%</strong>
+              <span>Random Forest result</span>
+              <strong>{selectedMetric.randomForest.toFixed(2)}%</strong>
               <div className="bar-track">
                 <div
                   className="bar-fill low-risk"
-                  style={{ width: `${selectedMetric.decisionTree}%` }}
+                  style={{ width: `${selectedMetric.randomForest}%` }}
                 />
               </div>
             </div>

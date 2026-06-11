@@ -8,6 +8,9 @@ const createInitialFormData = (predictionLabDataset) => ({
   price: "",
   weight: "",
   volume: "",
+  length: "",
+  width: "",
+  height: "",
   tax: "",
 });
 
@@ -20,9 +23,9 @@ const impactLabels = {
 
 const prePredictionTips = [
   {
-    title: "Tax ratio check",
+    title: "Neural model inputs",
     detail:
-      "The classifier pays closest attention to how tax compares to invoice value.",
+      "The active model focuses on invoice value, weight, and shipment dimensions.",
   },
   {
     title: "Use dataset samples",
@@ -32,7 +35,7 @@ const prePredictionTips = [
   {
     title: "Compare against averages",
     detail:
-      "Weight, tax, and invoice value are shown against dataset benchmarks after submission.",
+      "Weight, volume, and dimensions are shown against dataset benchmarks after submission.",
   },
 ];
 
@@ -62,6 +65,39 @@ const formatCompactCurrency = (value) =>
     maximumFractionDigits: 1,
   }).format(Number(value || 0));
 
+const toSafeNumber = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
+
+const buildGeometrySummary = (formData) => {
+  const price = toSafeNumber(formData.price);
+  const weight = toSafeNumber(formData.weight);
+  const volume = toSafeNumber(formData.volume);
+  const length = toSafeNumber(formData.length);
+  const width = toSafeNumber(formData.width);
+  const height = toSafeNumber(formData.height);
+  const maxDimension = Math.max(length, width, height);
+  const dimensionSum = length + width + height;
+  const density = volume > 0 ? weight / volume : 0;
+  const valuePerKg = weight > 0 ? price / weight : 0;
+  const valuePerM3 = volume > 0 ? price / volume : 0;
+
+  return {
+    price,
+    weight,
+    volume,
+    length,
+    width,
+    height,
+    maxDimension,
+    dimensionSum,
+    density,
+    valuePerKg,
+    valuePerM3,
+  };
+};
+
 const defaultPredictionLabDataset = {
   totalShipments: 0,
   lowRiskCount: 0,
@@ -71,6 +107,13 @@ const defaultPredictionLabDataset = {
   averageTaxRatio: 0,
   averagePriceUsd: 0,
   averageWeightKg: 0,
+  averageLengthM: 0,
+  averageWidthM: 0,
+  averageHeightM: 0,
+  averageVolumeM3: 0,
+  averageMaxDimensionM: 0,
+  averageDimensionSumM: 0,
+  averageDensityKgM3: 0,
   averageTaxUsd: 0,
   taxRatioQuartiles: {
     low: 0,
@@ -78,9 +121,10 @@ const defaultPredictionLabDataset = {
     high: 0,
   },
   model: {
-    name: "SVM",
+    name: "Neural Network",
     accuracy: 0,
     testRows: 0,
+    decisionThreshold: 0,
   },
   topPorts: [],
   featuredSamples: [],
@@ -100,8 +144,8 @@ function PredictionView() {
   const [history, setHistory] = useState([]);
   const [historyError, setHistoryError] = useState("");
 
-  const price = Number(formData.price);
-  const weight = Number(formData.weight);
+  const geometry = useMemo(() => buildGeometrySummary(formData), [formData]);
+  const { price, weight, volume, length, width, height, maxDimension, dimensionSum, density, valuePerKg, valuePerM3 } = geometry;
   const tax = Number(formData.tax);
   const taxRatioPreview = price > 0 ? Number((tax / price).toFixed(4)) : 0;
   const isHighRisk = result?.risk === "HIGH RISK";
@@ -154,30 +198,27 @@ function PredictionView() {
     [formData.destinationPort, predictionLabDataset]
   );
 
-  const keyFactors = useMemo(() => {
-    const { averagePriceUsd, averageWeightKg, averageTaxUsd, taxRatioQuartiles } =
-      predictionLabDataset;
+  const {
+    averagePriceUsd,
+    averageWeightKg,
+    averageVolumeM3,
+    averageLengthM,
+    averageWidthM,
+    averageHeightM,
+    averageMaxDimensionM,
+    averageDimensionSumM,
+    averageDensityKgM3,
+  } = predictionLabDataset;
 
+  const keyFactors = useMemo(() => {
     const nextFactors = [];
 
     if (price > 0) {
-      if (taxRatioPreview <= taxRatioQuartiles.low) {
+      if (valuePerKg >= 1 && valuePerKg <= averagePriceUsd / Math.max(averageWeightKg, 1)) {
         nextFactors.push({
-          title: "Very low tax ratio",
-          detail: `${taxRatioPreview.toFixed(4)} is below the lower dataset band of ${taxRatioQuartiles.low.toFixed(4)}.`,
+          title: "Strong value-to-weight ratio",
+          detail: `${formatCompactCurrency(valuePerKg)} per kg compares well with the dataset average shipment profile.`,
           impact: "high",
-        });
-      } else if (taxRatioPreview >= taxRatioQuartiles.high) {
-        nextFactors.push({
-          title: "Tax ratio above stronger range",
-          detail: `${taxRatioPreview.toFixed(4)} is above the upper dataset band of ${taxRatioQuartiles.high.toFixed(4)}.`,
-          impact: "positive",
-        });
-      } else {
-        nextFactors.push({
-          title: "Tax ratio near dataset center",
-          detail: `${taxRatioPreview.toFixed(4)} sits close to the dataset median of ${taxRatioQuartiles.median.toFixed(4)}.`,
-          impact: "low",
         });
       }
 
@@ -208,17 +249,43 @@ function PredictionView() {
       });
     }
 
-    if (tax > 0) {
+    if (Number.isFinite(volume) && volume > 0) {
       nextFactors.push({
         title:
-          tax >= averageTaxUsd
-            ? "Declared tax above average"
-            : "Declared tax below average",
+          volume >= averageVolumeM3
+            ? "Larger volume profile"
+            : "Compact volume profile",
         detail:
-          tax >= averageTaxUsd
-            ? `${formatCurrency(tax)} exceeds the average declared tax of ${formatCurrency(averageTaxUsd)}.`
-            : `${formatCurrency(tax)} is below the average declared tax of ${formatCurrency(averageTaxUsd)}.`,
-        impact: tax >= averageTaxUsd ? "medium" : "low",
+          volume >= averageVolumeM3
+            ? `${volume.toFixed(4)} m3 is above the dataset average of ${averageVolumeM3.toFixed(4)} m3.`
+            : `${volume.toFixed(4)} m3 is below the dataset average of ${averageVolumeM3.toFixed(4)} m3.`,
+        impact: volume >= averageVolumeM3 ? "medium" : "low",
+      });
+    }
+
+    if (Number.isFinite(length) || Number.isFinite(width) || Number.isFinite(height)) {
+      nextFactors.push({
+        title:
+          maxDimension >= averageMaxDimensionM
+            ? "Wide dimension profile"
+            : "Compact dimension profile",
+        detail:
+          `${maxDimension.toFixed(3)} m max dimension and ${dimensionSum.toFixed(3)} m total span compare with the dataset averages of ${averageLengthM.toFixed(3)} x ${averageWidthM.toFixed(3)} x ${averageHeightM.toFixed(3)} m, max ${averageMaxDimensionM.toFixed(3)} m, and span ${averageDimensionSumM.toFixed(3)} m.`,
+        impact: maxDimension >= averageMaxDimensionM ? "medium" : "low",
+      });
+    }
+
+    if (density > 0) {
+      nextFactors.push({
+        title:
+          density >= averageDensityKgM3
+            ? "Dense shipment"
+            : "Lighter shipment density",
+        detail:
+          density >= averageDensityKgM3
+            ? `${density.toFixed(2)} kg/m3 is above the dataset average of ${averageDensityKgM3.toFixed(2)} kg/m3.`
+            : `${density.toFixed(2)} kg/m3 is below the dataset average of ${averageDensityKgM3.toFixed(2)} kg/m3.`,
+        impact: density >= averageDensityKgM3 ? "medium" : "low",
       });
     }
 
@@ -229,20 +296,45 @@ function PredictionView() {
     });
 
     return nextFactors.slice(0, 4);
-  }, [activePort, price, tax, taxRatioPreview, weight]);
+  }, [
+    activePort,
+    averageDimensionSumM,
+    averageDensityKgM3,
+    averageHeightM,
+    averageLengthM,
+    averageMaxDimensionM,
+    averagePriceUsd,
+    averageVolumeM3,
+    averageWeightKg,
+    averageWidthM,
+    density,
+    dimensionSum,
+    height,
+    length,
+    maxDimension,
+    price,
+    valuePerKg,
+    volume,
+    weight,
+    width,
+  ]);
 
   const similarShipments = useMemo(() => {
     const rankedSamples = allDatasetSamples
       .map((sample) => ({
         ...sample,
         distance:
-          Math.abs(sample.taxRatio - taxRatioPreview) +
-          Math.abs(sample.priceUsd - (price || sample.priceUsd)) / 1000,
+          Math.abs(sample.priceUsd - price) / Math.max(price, 1) +
+          Math.abs(sample.weightKg - weight) / Math.max(weight, 1) +
+          Math.abs(sample.volumeM3 - volume) / Math.max(volume, 0.0001) +
+          Math.abs(sample.lengthM - length) +
+          Math.abs(sample.widthM - width) +
+          Math.abs(sample.heightM - height),
       }))
       .sort((left, right) => left.distance - right.distance);
 
     return rankedSamples.slice(0, 3);
-  }, [allDatasetSamples, price, taxRatioPreview]);
+  }, [allDatasetSamples, height, length, price, volume, weight, width]);
 
   const loadPredictionHistory = async () => {
     try {
@@ -307,6 +399,9 @@ function PredictionView() {
       price: String(sample.priceUsd),
       weight: String(sample.weightKg),
       volume: String(sample.volumeM3 ?? ""),
+      length: String(sample.lengthM ?? ""),
+      width: String(sample.widthM ?? ""),
+      height: String(sample.heightM ?? ""),
       tax: String(sample.taxUsd),
     });
     setError("");
@@ -329,6 +424,26 @@ function PredictionView() {
         throw new Error("Price must be greater than zero.");
       }
 
+      if (!Number.isFinite(weight) || weight < 0) {
+        throw new Error("Weight must be zero or greater.");
+      }
+
+      if (!Number.isFinite(volume) || volume <= 0) {
+        throw new Error("Volume must be greater than zero.");
+      }
+
+      if (!Number.isFinite(length) || length < 0) {
+        throw new Error("Length must be zero or greater.");
+      }
+
+      if (!Number.isFinite(width) || width < 0) {
+        throw new Error("Width must be zero or greater.");
+      }
+
+      if (!Number.isFinite(height) || height < 0) {
+        throw new Error("Height must be zero or greater.");
+      }
+
       if (!Number.isFinite(tax) || tax < 0) {
         throw new Error("Tax must be zero or greater.");
       }
@@ -336,11 +451,16 @@ function PredictionView() {
       const payload = {
         product_name: formData.productName.trim(),
         destination_port: formData.destinationPort,
+        price_usd: price,
         price,
-        weight_kg: Number.isFinite(weight) ? weight : null,
-        volume_m3: Number.isFinite(Number(formData.volume))
-          ? Number(formData.volume)
-          : null,
+        weight_kg: weight,
+        volume_m3: volume,
+        length_m: length,
+        width_m: width,
+        height_m: height,
+        max_dimension_m: maxDimension,
+        dimension_sum_m: dimensionSum,
+        density_kg_m3: density,
         tax,
         tax_ratio: taxRatioPreview,
       };
@@ -413,9 +533,9 @@ function PredictionView() {
               <div>
                 <h3>Enter Shipment Details</h3>
                 <p>
-                  The live model predicts from tax and tax ratio. The additional
-                  shipment fields drive the dataset comparison cards and saved
-                  prediction context.
+                  The live Neural Network predicts from invoice value, weight,
+                  volume, and shipment dimensions. Tax still powers the dataset
+                  comparison cards and saved prediction context.
                 </p>
               </div>
             </div>
@@ -432,7 +552,8 @@ function PredictionView() {
                   <span>{sample.destinationPort}</span>
                   <small>
                     {formatCurrency(sample.priceUsd)} |{" "}
-                    {sample.taxRatio.toFixed(4)} tax ratio
+                    {sample.weightKg.toFixed(2)} kg |{" "}
+                    {sample.volumeM3.toFixed(4)} m3
                   </small>
                 </button>
               ))}
@@ -499,18 +620,65 @@ function PredictionView() {
 
               <div className="prediction-form-grid">
                 <label className="field">
+                  <span>Length (m)</span>
+                  <input
+                    type="number"
+                    name="length"
+                    value={formData.length}
+                    onChange={handleChange}
+                    required
+                    min="0"
+                    step="0.001"
+                    placeholder="Example: 0.45"
+                  />
+                </label>
+
+                <label className="field">
+                  <span>Width (m)</span>
+                  <input
+                    type="number"
+                    name="width"
+                    value={formData.width}
+                    onChange={handleChange}
+                    required
+                    min="0"
+                    step="0.001"
+                    placeholder="Example: 0.30"
+                  />
+                </label>
+              </div>
+
+              <div className="prediction-form-grid">
+                <label className="field">
+                  <span>Height (m)</span>
+                  <input
+                    type="number"
+                    name="height"
+                    value={formData.height}
+                    onChange={handleChange}
+                    required
+                    min="0"
+                    step="0.001"
+                    placeholder="Example: 0.12"
+                  />
+                </label>
+
+                <label className="field">
                   <span>Volume (m3)</span>
                   <input
                     type="number"
                     name="volume"
                     value={formData.volume}
                     onChange={handleChange}
+                    required
                     min="0"
                     step="0.0001"
                     placeholder="Example: 0.1250"
                   />
                 </label>
+              </div>
 
+              <div className="prediction-form-grid">
                 <label className="field">
                   <span>Tax Amount (USD)</span>
                   <input
@@ -523,6 +691,16 @@ function PredictionView() {
                     step="0.01"
                     placeholder="Example: 18.00"
                   />
+                </label>
+
+                <label className="field">
+                  <span>Derived NN Signals</span>
+                  <div className="prediction-derived-field">
+                    <strong>{maxDimension.toFixed(3)}m max / {dimensionSum.toFixed(3)}m total</strong>
+                    <small>
+                      Density {density.toFixed(2)} kg/m3 | Value/kg {formatCompactCurrency(valuePerKg)} | Value/m3 {formatCompactCurrency(valuePerM3)}
+                    </small>
+                  </div>
                 </label>
               </div>
 
@@ -559,9 +737,9 @@ function PredictionView() {
             <div className="prediction-footnote">
               <strong>Real dataset note</strong>
               <p>
-                This page only uses fields that exist in your shipment dataset:
-                product name, destination port, price, weight, volume, tax, tax
-                ratio, and risk behavior.
+                This page uses fields that exist in your shipment dataset:
+                product name, destination port, price, weight, dimensions,
+                volume, tax, and the derived risk behavior shown in the dataset.
               </p>
             </div>
 
@@ -641,7 +819,7 @@ function PredictionView() {
                 </strong>
                 <p>
                   {result && !error
-                    ? "The score below comes from the active ML endpoint and uses the tax behavior entered in this form."
+                    ? "The score below comes from the active Neural Network endpoint and uses the shipment features entered in this form."
                     : "Run a prediction to populate the result, confidence, and factor panels."}
                 </p>
               </div>
@@ -661,8 +839,22 @@ function PredictionView() {
               </div>
 
               <div className="summary-row">
-                <span>Entered Tax</span>
-                <strong>{formData.tax ? formatCurrency(formData.tax) : "-"}</strong>
+                <span>Entered Weight</span>
+                <strong>{formData.weight ? `${Number(formData.weight).toFixed(2)} kg` : "-"}</strong>
+              </div>
+
+              <div className="summary-row">
+                <span>Entered Volume</span>
+                <strong>{formData.volume ? `${Number(formData.volume).toFixed(4)} m3` : "-"}</strong>
+              </div>
+
+              <div className="summary-row">
+                <span>Dimensions</span>
+                <strong>
+                  {formData.length && formData.width && formData.height
+                    ? `${Number(formData.length).toFixed(3)} x ${Number(formData.width).toFixed(3)} x ${Number(formData.height).toFixed(3)} m`
+                    : "-"}
+                </strong>
               </div>
 
               <div className="summary-row">
@@ -772,14 +964,14 @@ function PredictionView() {
 
       <section className="panel table-panel prediction-similar-section">
         <div className="panel-header">
-          <div>
-            <h3>Similar Dataset Shipments</h3>
-            <p>
-              Closest examples from the processed CSV based on tax ratio and
-              invoice value.
-            </p>
+            <div>
+              <h3>Similar Dataset Shipments</h3>
+              <p>
+              Closest examples from the processed CSV based on price, weight,
+              volume, and shipment dimensions.
+              </p>
+            </div>
           </div>
-        </div>
 
         <div className="prediction-similar-grid">
           {similarShipments.map((sample) => (
@@ -797,8 +989,8 @@ function PredictionView() {
               <p>{sample.destinationPort}</p>
               <div className="prediction-similar-metrics">
                 <span>{formatCurrency(sample.priceUsd)}</span>
-                <span>{sample.taxRatio.toFixed(4)} tax ratio</span>
                 <span>{sample.weightKg.toFixed(2)} kg</span>
+                <span>{sample.volumeM3.toFixed(4)} m3</span>
               </div>
             </div>
           ))}
@@ -917,8 +1109,9 @@ function PredictionView() {
                 <th>Risk</th>
                 <th>Product</th>
                 <th>Destination Port</th>
-                <th>Tax</th>
-                <th>Tax Ratio</th>
+                <th>Price</th>
+                <th>Weight</th>
+                <th>Volume</th>
                 <th>Created At</th>
               </tr>
             </thead>
@@ -926,7 +1119,7 @@ function PredictionView() {
             <tbody>
               {history.length === 0 ? (
                 <tr>
-                  <td colSpan="7">No prediction history available yet.</td>
+                  <td colSpan="8">No prediction history available yet.</td>
                 </tr>
               ) : (
                 history.map((item) => (
@@ -943,8 +1136,9 @@ function PredictionView() {
                     </td>
                     <td>{item.metadata?.product_name || "Manual entry"}</td>
                     <td>{item.metadata?.destination_port || "-"}</td>
-                    <td>{item.input?.tax}</td>
-                    <td>{item.input?.tax_ratio}</td>
+                    <td>{item.input?.price_usd ?? item.input?.price ?? "-"}</td>
+                    <td>{item.input?.weight_kg ?? "-"}</td>
+                    <td>{item.input?.volume_m3 ?? "-"}</td>
                     <td>{item.created_at}</td>
                   </tr>
                 ))

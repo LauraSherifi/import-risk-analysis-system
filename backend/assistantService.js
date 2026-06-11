@@ -36,7 +36,7 @@ function buildPageDescriptor(route) {
         pageKey: "dashboard",
         pageLabel: "Dashboard",
         description:
-          "Overview of dataset quality, risk distribution, and completed model metrics for Decision Tree, Neural Network, and SVM.",
+          "Overview of dataset quality, risk distribution, and the active Neural Network model alongside Random Forest and SVM comparison metrics.",
       };
     case "/app/dataset":
       return {
@@ -50,7 +50,7 @@ function buildPageDescriptor(route) {
         pageKey: "prediction",
         pageLabel: "Prediction Lab",
         description:
-          "Live prediction form, history, and dataset benchmarks tied to the ML service.",
+          "Live prediction form, history, and dataset benchmarks tied to the active Neural Network service.",
       };
     case "/app/testing-lab":
       return {
@@ -59,12 +59,19 @@ function buildPageDescriptor(route) {
         description:
           "Interactive learning games powered by dataset context and model comparison metrics.",
       };
+    case "/app/models/random-forest":
+      return {
+        pageKey: "random-forest",
+        pageLabel: "Random Forest Model",
+        description:
+          "Random Forest metrics, feature list, and confusion matrix.",
+      };
     case "/app/models/decision-tree":
       return {
-        pageKey: "decision-tree",
-        pageLabel: "Decision Tree Model",
+        pageKey: "random-forest",
+        pageLabel: "Random Forest Model",
         description:
-          "Decision Tree metrics, feature list, and confusion matrix.",
+          "Random Forest metrics, feature list, and confusion matrix.",
       };
     case "/app/models/neural-network":
       return {
@@ -110,7 +117,7 @@ function buildPageContext(route, predictionHistory = [], historySummary = null) 
         topPorts: dashboard.top_ports.slice(0, 5),
         topProducts: dashboard.top_products.slice(0, 5),
         completedModels: {
-          decisionTreeAccuracy: dashboard.models?.decision_tree?.accuracy ?? null,
+          randomForestAccuracy: dashboard.models?.random_forest?.accuracy ?? null,
           neuralNetworkAccuracy: dashboard.models?.neural_network?.accuracy ?? null,
           svmAccuracy: dashboard.models?.svm?.accuracy ?? null,
         },
@@ -220,7 +227,7 @@ function buildPageContext(route, predictionHistory = [], historySummary = null) 
             "Dataset",
             "Prediction Lab",
             "Mini Testing Lab",
-            "Decision Tree Model",
+            "Random Forest Model",
             "Neural Network Model",
             "SVM Model",
           ],
@@ -293,7 +300,7 @@ function buildPresentationReply(pageContext) {
     case "dashboard":
       return formatSummaryLines([
         "You can present this as the high-level control room of the Import Risk Analysis System.",
-        `It summarizes ${pageContext.overview.total_records.toLocaleString()} cleaned shipment records, shows the risk split, and compares the completed Decision Tree, Neural Network, and SVM models.`,
+        `It summarizes ${pageContext.overview.total_records.toLocaleString()} cleaned shipment records, shows the risk split, and compares the active Neural Network with Random Forest and SVM.`,
         "The main message is that the dashboard combines data quality, shipment patterns, and model performance in one place.",
       ]);
     case "dataset":
@@ -305,7 +312,7 @@ function buildPresentationReply(pageContext) {
     case "prediction":
       return formatSummaryLines([
         "You can present this page as the live decision screen of the project.",
-        `It uses the active ${pageContext.model?.name || "SVM"} model, compares user input against dataset benchmarks, and shows recent prediction behavior.`,
+        `It uses the active ${pageContext.model?.name || "Neural Network"} model, compares user input against dataset benchmarks, and shows recent prediction behavior.`,
         "The message is that users can test shipment cases and immediately see how the project interprets customs risk.",
       ]);
     case "testing-lab":
@@ -332,7 +339,7 @@ function buildPageAnswer(pageContext) {
     case "dashboard":
       return formatSummaryLines([
         `This page is the project dashboard. It summarizes ${pageContext.overview.total_records.toLocaleString()} shipment records and shows a high-risk share of ${pageContext.overview.high_risk_share}%.`,
-        `The strongest completed models shown here are Decision Tree at ${formatAccuracy(pageContext.completedModels.decisionTreeAccuracy)}, Neural Network at ${formatAccuracy(pageContext.completedModels.neuralNetworkAccuracy)}, and SVM at ${formatAccuracy(pageContext.completedModels.svmAccuracy)}.`,
+        `The Neural Network is the active project model, while Random Forest at ${formatAccuracy(pageContext.completedModels.randomForestAccuracy)} and SVM at ${formatAccuracy(pageContext.completedModels.svmAccuracy)} remain available for comparison.`,
         pageContext.topPorts[0]
           ? `${pageContext.topPorts[0].port} is currently the top destination port in the visible summary.`
           : "",
@@ -359,10 +366,10 @@ function buildPageAnswer(pageContext) {
         `It uses ${pageContext.sampleCounts.labSamples} lab samples, ${pageContext.sampleCounts.featuredSamples} featured examples, and model comparison metrics from the backend.`,
         `The lab is centered on understanding how features like tax ratio influence the project's risk logic.`
       ]);
-    case "decision-tree":
+    case "random-forest":
       return pageContext.model
-        ? `This page explains the Decision Tree model. The current summary shows accuracy of ${formatAccuracy(pageContext.model.accuracy)}, F1 score of ${formatAccuracy(pageContext.model.f1Score)}, and the most important feature signals.`
-        : "This page is intended to show Decision Tree metrics, but no metrics are currently available.";
+        ? `This page explains the Random Forest model. The current summary shows accuracy of ${formatAccuracy(pageContext.model.accuracy)}, F1 score of ${formatAccuracy(pageContext.model.f1Score)}, and the most important feature signals.`
+        : "This page is intended to show Random Forest metrics, but no metrics are currently available.";
     case "risk-map":
     case "neural-network":
     case "svm":

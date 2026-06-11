@@ -6,7 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import DatasetPage from "./pages/DatasetPage";
 import PredictionView from "./pages/PredictionView";
 import RiskMapPage from "./pages/RiskMapPage";
-import DecisionTreeModelPage from "./pages/DecisionTreeModelPage";
+import RandomForestModelPage from "./pages/RandomForestModelPage";
 import NeuralNetworkModelPage from "./pages/NeuralNetworkModelPage";
 import SVMModelPage from "./pages/SVMModelPage";
 import MiniTestingLabPage from "./pages/MiniTestingLabPage";
@@ -26,7 +26,7 @@ function App() {
           <Route path="prediction" element={<PredictionView />} />
           <Route path="testing-lab" element={<MiniTestingLabPage />} />
           <Route path="risk-map" element={<RiskMapPage />} />
-          <Route path="models/decision-tree" element={<DecisionTreeModelPage />} />
+          <Route path="models/random-forest" element={<RandomForestModelPage />} />
           <Route path="models/neural-network" element={<NeuralNetworkModelPage />} />
           <Route path="models/svm" element={<SVMModelPage />} />
         </Route>
@@ -38,7 +38,8 @@ function App() {
       <Route path="/testing-lab" element={<Navigate to="/app/testing-lab" replace />} />
       <Route path="/prediction-history" element={<Navigate to="/app/prediction" replace />} />
       <Route path="/risk-map" element={<Navigate to="/app/risk-map" replace />} />
-      <Route path="/models/decision-tree" element={<Navigate to="/app/models/decision-tree" replace />} />
+      <Route path="/models/random-forest" element={<Navigate to="/app/models/random-forest" replace />} />
+      <Route path="/models/decision-tree" element={<Navigate to="/app/models/random-forest" replace />} />
       <Route path="/models/neural-network" element={<Navigate to="/app/models/neural-network" replace />} />
       <Route path="/models/svm" element={<Navigate to="/app/models/svm" replace />} />
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { completedModelPages } from "../config/modelPages";
 import brandLogo from "../assets/brand-logo.png";
@@ -10,6 +10,35 @@ function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    const mobileQuery = window.matchMedia("(max-width: 900px)");
+
+    const applyInitialState = () => {
+      setIsSidebarOpen(!mobileQuery.matches);
+    };
+
+    applyInitialState();
+
+    const handleChange = (event) => {
+      setIsSidebarOpen(!event.matches);
+    };
+
+    if (mobileQuery.addEventListener) {
+      mobileQuery.addEventListener("change", handleChange);
+    } else {
+      mobileQuery.addListener(handleChange);
+    }
+
+    return () => {
+      if (mobileQuery.removeEventListener) {
+        mobileQuery.removeEventListener("change", handleChange);
+      } else {
+        mobileQuery.removeListener(handleChange);
+      }
+    };
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -17,13 +46,37 @@ function AppShell() {
   };
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div className={`app-shell ${isSidebarOpen ? "sidebar-open" : "sidebar-collapsed"}`}>
+      <button
+        type="button"
+        className="sidebar-toggle sidebar-toggle-mobile"
+        onClick={() => setIsSidebarOpen((current) => !current)}
+        aria-expanded={isSidebarOpen}
+        aria-controls="app-sidebar"
+        aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+      >
+        <span className="sidebar-toggle-icon" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+      </button>
+
+      {isSidebarOpen && (
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          aria-label="Close sidebar"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <aside className="sidebar" id="app-sidebar">
         <div className="sidebar-brand">
           <div className="logo">
             <img src={brandLogo} alt="Import Risk Analysis System logo" />
           </div>
-          <div>
+          <div className="sidebar-brand-copy">
             <h2>Import Risk</h2>
             <p>Analysis System</p>
           </div>
@@ -32,7 +85,6 @@ function AppShell() {
         <div className="sidebar-summary">
           <span className="sidebar-kicker">Authenticated Session</span>
           <strong>{session?.adminId || "Admin access"}</strong>
-          <p>Secure workspace for shipment monitoring, model review, and prediction analysis.</p>
         </div>
 
         <nav>

@@ -112,23 +112,19 @@ function Dashboard() {
   const sampleRows = dashboardData?.sample_rows ?? [];
   const featureImpact = dashboardData?.feature_impact ?? [];
 
-  const decisionTreeModel = dashboardData?.models?.decision_tree ?? null;
+  const randomForestModel = dashboardData?.models?.random_forest ?? null;
   const neuralNetworkModel = dashboardData?.models?.neural_network ?? null;
   const svmModel = dashboardData?.models?.svm ?? null;
 
-  const decisionTreeAccuracy = toPercentNumber(decisionTreeModel?.accuracy);
-  const decisionTreeF1 = toPercentNumber(decisionTreeModel?.f1_score);
-  const decisionTreePrecision = toPercentNumber(decisionTreeModel?.precision);
-  const decisionTreeRecall = toPercentNumber(decisionTreeModel?.recall);
+  const randomForestAccuracy = toPercentNumber(randomForestModel?.accuracy);
+  const randomForestF1 = toPercentNumber(randomForestModel?.f1_score);
+  const randomForestPrecision = toPercentNumber(randomForestModel?.precision);
+  const randomForestRecall = toPercentNumber(randomForestModel?.recall);
 
   const neuralNetworkAccuracy = toPercentNumber(neuralNetworkModel?.accuracy);
   const neuralNetworkF1 = toPercentNumber(neuralNetworkModel?.f1_score);
-  const neuralNetworkPrecision = toPercentNumber(
-    neuralNetworkModel?.classification_report?.["HIGH RISK"]?.precision
-  );
-  const neuralNetworkRecall = toPercentNumber(
-    neuralNetworkModel?.classification_report?.["HIGH RISK"]?.recall
-  );
+  const neuralNetworkPrecision = toPercentNumber(neuralNetworkModel?.precision);
+  const neuralNetworkRecall = toPercentNumber(neuralNetworkModel?.recall);
 
   const svmAccuracy = toPercentNumber(svmModel?.accuracy);
   const svmF1 = toPercentNumber(svmModel?.f1_score);
@@ -153,15 +149,15 @@ function Dashboard() {
       className: "circle-high",
     },
     {
-      label: "Decision Tree",
-      value: decisionTreeAccuracy,
+      label: "Random Forest",
+      value: randomForestAccuracy,
       detail: "Completed model",
       className: "circle-model",
     },
     {
       label: "Neural Network",
       value: neuralNetworkAccuracy,
-      detail: "Completed model",
+      detail: "Primary model",
       className: "circle-benchmark",
     },
     {
@@ -174,26 +170,26 @@ function Dashboard() {
 
   const completedModels = [
     {
-      name: "Decision Tree",
-      role: "Interpretable classifier",
-      status: "Completed",
-      accuracy: decisionTreeAccuracy,
-      f1: decisionTreeF1,
-      precision: decisionTreePrecision,
-      recall: decisionTreeRecall,
-      insight:
-        "Decision Tree is useful for clear interpretation and feature tracing.",
-    },
-    {
       name: "Neural Network",
-      role: "Non-linear classifier",
-      status: "Completed",
+      role: "Primary risk model",
+      status: "Primary",
       accuracy: neuralNetworkAccuracy,
       f1: neuralNetworkF1,
       precision: neuralNetworkPrecision,
       recall: neuralNetworkRecall,
       insight:
-        "Neural Network captures more complex patterns in the cleaned shipment data.",
+        "This is the active model for the project, tuned to catch risky shipments from shipment features.",
+    },
+    {
+      name: "Random Forest",
+      role: "Ensemble classifier",
+      status: "Completed",
+      accuracy: randomForestAccuracy,
+      f1: randomForestF1,
+      precision: randomForestPrecision,
+      recall: randomForestRecall,
+      insight:
+        "Random Forest is the ensemble reference model with balanced performance and stronger stability.",
     },
     {
       name: "SVM",
@@ -211,35 +207,31 @@ function Dashboard() {
   const metricsMatrix = [
     {
       metric: "Accuracy",
-      decisionTree: `${decisionTreeAccuracy.toFixed(2)}%`,
+      randomForest: `${randomForestAccuracy.toFixed(2)}%`,
       neuralNetwork: `${neuralNetworkAccuracy.toFixed(2)}%`,
       svm: `${svmAccuracy.toFixed(2)}%`,
     },
     {
       metric: "F1 Score",
-      decisionTree: `${decisionTreeF1.toFixed(2)}%`,
+      randomForest: `${randomForestF1.toFixed(2)}%`,
       neuralNetwork: `${neuralNetworkF1.toFixed(2)}%`,
       svm: `${svmF1.toFixed(2)}%`,
     },
     {
       metric: "Precision",
-      decisionTree: `${decisionTreePrecision.toFixed(2)}%`,
+      randomForest: `${randomForestPrecision.toFixed(2)}%`,
       neuralNetwork: `${neuralNetworkPrecision.toFixed(2)}%`,
       svm: `${svmPrecision.toFixed(2)}%`,
     },
     {
       metric: "Recall",
-      decisionTree: `${decisionTreeRecall.toFixed(2)}%`,
+      randomForest: `${randomForestRecall.toFixed(2)}%`,
       neuralNetwork: `${neuralNetworkRecall.toFixed(2)}%`,
       svm: `${svmRecall.toFixed(2)}%`,
     },
   ];
 
-  const bestModel =
-    [decisionTreeModel, neuralNetworkModel, svmModel]
-      .filter(Boolean)
-      .sort((left, right) => (Number(right?.accuracy ?? 0) - Number(left?.accuracy ?? 0)))[0] ??
-    decisionTreeModel;
+  const bestModel = neuralNetworkModel ?? randomForestModel ?? svmModel;
 
   const matrix = getMatrix(bestModel);
 
@@ -279,7 +271,8 @@ function Dashboard() {
           <h1>Shipment Risk Dashboard</h1>
           <p>
             Executive overview of the cleaned shipment dataset, risk structure,
-            completed model performance and future model roadmap.
+            and the active Neural Network model with the comparison models
+            kept alongside it.
           </p>
         </div>
 
@@ -367,14 +360,12 @@ function Dashboard() {
           </div>
 
           <div className="highlight-insight">
-            <span>Best Performing Model</span>
-            <strong>{bestModel?.model || "Decision Tree"}</strong>
+            <span>Primary Model</span>
+            <strong>{bestModel?.model || "Neural Network"}</strong>
             <p>
-              The strongest completed model varies by metric, so the dashboard
-              now compares Decision Tree, Neural Network, and SVM only. The
-              current risk label is simulated, so model performance should be
-              presented as prototype evaluation rather than real-world fraud
-              detection accuracy.
+              The Neural Network is now the active project model. Random Forest
+              and SVM stay visible for comparison, but the main prediction flow
+              and interface are wired around the neural network artifacts.
             </p>
           </div>
         </div>
@@ -467,7 +458,7 @@ function Dashboard() {
           <div className="metrics-heatmap">
             <div className="heatmap-row heatmap-header">
               <span>Metric</span>
-              <strong>Decision Tree</strong>
+              <strong>Random Forest</strong>
               <strong>Neural Net</strong>
               <strong>SVM</strong>
             </div>
@@ -475,7 +466,7 @@ function Dashboard() {
             {metricsMatrix.map((row) => (
               <div className="heatmap-row" key={row.metric}>
                 <span>{row.metric}</span>
-                <strong className="heatmap-strong">{row.decisionTree}</strong>
+                <strong className="heatmap-strong">{row.randomForest}</strong>
                 <strong className="heatmap-weak">{row.neuralNetwork}</strong>
                 <strong className="heatmap-weak">{row.svm}</strong>
               </div>
